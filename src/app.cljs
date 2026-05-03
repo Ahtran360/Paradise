@@ -332,6 +332,8 @@
 (defonce root (atom nil))
 
 (defn mount-root []
+(.enable SafeArea nil)
+
  (re-frame/dispatch [:ui/switch-theme])
   (re-frame/clear-subscription-cache!)
   (let [container (.getElementById js/document "root")]
