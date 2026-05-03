@@ -6,11 +6,27 @@ const config: CapacitorConfig = {
     webDir: "dist",
     server: {
         // url: "http://192.168.3.33:8000",
-        cleartext: true,
         //        allowNavigation: ["192.168.3.33"],
-        // androidScheme: "https",
+        //        cleartext: true,
+        androidScheme: "http",
     },
+
+    android: {
+        adjustMarginsForEdgeToEdge: "disable",
+    },
+
     plugins: {
+        SystemBars: {
+            insetsHandling: "disable",
+        },
+
+        SafeArea: {
+            statusBarStyle: undefined,
+            navigationBarStyle: undefined,
+            detectViewportFitCoverChanges: undefined,
+            initialViewportFitCover: undefined,
+            offsetForKeyboardInsetBug: undefined,
+        },
         SplashScreen: {
             launchShowDuration: 3000,
             launchAutoHide: false,
