@@ -372,16 +372,6 @@ html, body {
 }
 
 
-:root {
-    --app-cushion-top: env(safe-area-inset-top, 0px);
-    --app-cushion-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-:root[data-platform="ios"] {
-    --app-cushion-bottom: 8px;
-}
-
-
 #app {
     height: 100%;
     width: 100%;
@@ -579,18 +569,22 @@ providing the encapsulation and parsing for us.
 
 
 #+begin_src clojurescript :tangle ../src/app.cljs
+
 (defn main-layout []
   (r/with-let [!drag-state (r/atom {:start-x nil :dx 0})]
     (let [auth-status   @(re-frame/subscribe [:auth/status])
           sidebar-open? @(re-frame/subscribe [:ui/sidebar-open?])
           update-ready? @(re-frame/subscribe [:app/update-available?])
-
+          platform         (.getPlatform js/Capacitor)
+          cushion       (if (= platform "ios")
+                          "8px"
+                          "env(safe-area-inset-bottom, 0px)")
           swipe-props (make-swipe-handlers
                        !drag-state
                        {:on-end (fn [dx]
                                   (let [start-x (:start-x @!drag-state)]
                                     (cond
-                                      (and (not sidebar-open?) (> dx 60))
+                                      (and (not sidebar-open?) #_ (< start-x 40) (> dx 60))
                                       (re-frame/dispatch [:ui/set-sidebar true])
                                       (and sidebar-open? (< dx -60))
                                       (re-frame/dispatch [:ui/set-sidebar false]))))})]
@@ -610,18 +604,21 @@ providing the encapsulation and parsing for us.
          (into [:div.app-root
                 (merge {:class (when sidebar-open? "sidebars-open")
                         :style {:touch-action "pan-y"
-                                :padding-bottom "var(--app-cushion-bottom)"}}
+                                :padding-bottom cushion
+                                }}
                        swipe-props)]
                [[spaces-sidebar]
                 [room-list]
                 (when sidebar-open?
                   [:div.mobile-overlay {:on-click #(re-frame/dispatch [:ui/set-sidebar false])}])
-                [container]])
+                [container]
+                ])
          [modal-root]
          [popover-root]
          [global-key-listener]
          [global-context-menu]]
         [:div "Unknown State"]))))
+
 #+end_src
 
 
@@ -651,9 +648,6 @@ when we detatch and reload (basically when you hit control + s to save).
 #+begin_src clojurescript :tangle ../src/app.cljs
 (defonce root (atom nil))
 
-(defn inject-platform! []
-  (.setAttribute (.-documentElement js/document) "data-platform" (.getPlatform js/Capacitor)))
-
 (defn mount-root []
   (re-frame/dispatch [:ui/switch-theme])
   (re-frame/clear-subscription-cache!)
@@ -662,8 +656,6 @@ when we detatch and reload (basically when you hit control + s to save).
       (reset! root (rdom/create-root container)))
     (init-window-size-listener!)
     (init-capacitor-listeners!)
-    (inject-platform!)
-
     (.render @root (r/as-element [main-layout]))))
 
 (defn ^:export init []
