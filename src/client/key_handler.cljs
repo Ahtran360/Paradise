@@ -2,7 +2,6 @@
   (:require
    [reagent.core :as r]
    [utils.macros :refer [defui]]
-   ["@capacitor/keyboard" :refer [Keyboard]]
    [re-frame.core :as re-frame]))
 
 
@@ -19,7 +18,7 @@
     (finally
       (.removeEventListener js/window "keydown" handler))))
 
-(re-frame/reg-fx
+#_(re-frame/reg-fx
  :native/hide-keyboard
  (fn [_]
    (.hide Keyboard)))
