@@ -293,13 +293,10 @@
 
 
 .sidebar-profile-mini {
-  padding: 12px 0;
-  bottom: var(--app-cushion-bottom);
-  display: flex;
+ display: flex;
   justify-content: center;
   align-items: center;
   border-top: 1px solid #1e1f22;
-  position: relative;
 }
 
 .profile-trigger {
