@@ -435,6 +435,21 @@ We also don't want to list our own name, so we remove that too.
 
 #+end_src
 
+#+begin_src clojurescript :tangle ../../../src/container/timeline/base.cljs
+
+(re-frame/reg-sub
+ :timeline/last-own-editable-message
+ (fn [[_ room-id]]
+   (re-frame/subscribe [:timeline/current-events room-id]))
+ (fn [events _]
+   (->> events
+        (filter #(and (:is-own? %)
+                      (= (:type %) :event)
+                      (= (:content-tag %) "MsgLike")))
+        last)))
+
+#+end_src
+
 
 
 ***** Component

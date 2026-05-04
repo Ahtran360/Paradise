@@ -366,6 +366,7 @@ Ideally, we should break this apart more later.
             context        @(re-frame/subscribe [:input/context active-id])
             picker-open?   @(re-frame/subscribe [:ui/inline-emoji-open?])
             tr             @(re-frame/subscribe [:i18n/tr])
+            last-own-msg   @(re-frame/subscribe [:timeline/last-own-editable-message active-id])
             submit-message! (fn []
                               (when-let [ed @!editor]
                                 (let [text        (.getText ed)
@@ -458,7 +459,10 @@ Ideally, we should break this apart more later.
                   :placeholder (tr [:composer/placeholder])
                   :onEditorReady #(reset! !editor %)
                   :onSuggestionStart (fn [cmd] (reset! !sug-command cmd))
-                  :onSuggestionExit  (fn [] (reset! !sug-command nil))}]]
+                  :onSuggestionExit  (fn [] (reset! !sug-command nil))
+                  :onEditLast (fn []
+                                (when last-own-msg
+                                  (re-frame/dispatch [:input/set-context active-id :edit last-own-msg])))}]]
            [plugins/plugin-slot :composer-actions {:room-id active-id}]
            [timeline-emoji-button {:on-click #(if picker-open?
                                                 (re-frame/dispatch [:ui/close-popover])

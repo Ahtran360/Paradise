@@ -229,7 +229,7 @@ This determines the 'submit' behavior for the editor.
 (def submit-extension
   (.create Extension
            #js {:name "submitExtension"
-                :addOptions (fn [] #js {:onSend nil})
+                :addOptions (fn [] #js {:onSend nil :onEditLast nil})
                 :addKeyboardShortcuts
                 (fn []
                   (this-as this
@@ -241,7 +241,14 @@ This determines the 'submit' behavior for the editor.
                                             (when (and on-send (on-send text html))
                                               (.commands.clearContent editor true))
                                             true))
-                                "Shift-Enter" (fn [] false)}))}))
+                                "Shift-Enter" (fn [] false)
+                                "ArrowUp" (fn [context]
+                                            (let [editor       (.-editor context)
+                                                  on-edit-last (.. this -options -onEditLast)
+                                                  text         (.getText editor)]
+                                              (if (and on-edit-last (str/blank? text))
+                                                (do (on-edit-last) true)
+                                                false)))}))}))
 #+end_src
 
 
@@ -263,15 +270,19 @@ so we stick with what the complex component expects.
         cached-html  (.. props -children -cachedHtml)
         placeholder  (.. props -children -placeholder)
         on-ready     (.. props -children -onEditorReady)
-        latest-cbs   (react/useRef #js {:onSend on-send :onFiles on-files})
-        _            (set! (.-current latest-cbs) #js {:onSend on-send :onFiles on-files})
+        on-edit-last (.. props -children -onEditLast)
+        latest-cbs   (react/useRef #js {:onSend on-send :onFiles on-files :onEditLast on-edit-last})
+        _            (set! (.-current latest-cbs) #js {:onSend on-send :onFiles on-files :onEditLast on-edit-last})
         editor (useEditor
                 #js {:extensions #js [(.configure StarterKit #js {})
                                       (.configure Placeholder #js {:placeholder placeholder})
                                       (.configure submit-extension
                                       #js {:onSend (fn [text html]
                                                      (let [cb (.-onSend (.-current latest-cbs))]
-                                                       (when cb (cb text html))))})
+                                                       (when cb (cb text html))))
+                                           :onEditLast (fn []
+                                                         (let [cb (.-onEditLast (.-current latest-cbs))]
+                                                           (when cb (cb))))})
                                       (.configure file-drop-extension
                                       #js {:onFiles (fn [files]
                                                       (let [cb (.-onFiles (.-current latest-cbs))]
