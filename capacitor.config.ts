@@ -10,22 +10,12 @@ const config: CapacitorConfig = {
         //        cleartext: true,
         androidScheme: "http",
     },
-
     android: {
-        adjustMarginsForEdgeToEdge: "disable",
+        adjustMarginsForEdgeToEdge: "force",
     },
-
     plugins: {
         SystemBars: {
-            insetsHandling: "disable",
-        },
-
-        SafeArea: {
-            statusBarStyle: undefined,
-            navigationBarStyle: undefined,
-            detectViewportFitCoverChanges: undefined,
-            initialViewportFitCover: undefined,
-            offsetForKeyboardInsetBug: undefined,
+            insetsHandling: "css",
         },
         SplashScreen: {
             launchShowDuration: 3000,
@@ -35,6 +25,9 @@ const config: CapacitorConfig = {
             androidSpinnerStyle: "large",
             iosSpinnerStyle: "small",
             spinnerColor: "#dbdee1",
+        },
+        Keyboard: {
+            resizeOnFullScreen: false,
         },
         PushNotifications: {
             presentationOptions: ["badge", "sound", "alert"],
