@@ -652,6 +652,8 @@ when we detatch and reload (basically when you hit control + s to save).
 #+begin_src clojurescript :tangle ../src/app.cljs
 (defonce root (atom nil))
 
+(defn inject-platform! []
+  (.setAttribute (.-documentElement js/document) "data-platform" (.getPlatform js/Capacitor)))
 
 (defn mount-root []
   (re-frame/dispatch [:ui/switch-theme])
@@ -661,6 +663,7 @@ when we detatch and reload (basically when you hit control + s to save).
       (reset! root (rdom/create-root container)))
     (init-window-size-listener!)
     (init-capacitor-listeners!)
+    (inject-platform!)
 
     (.render @root (r/as-element [main-layout]))))
 
