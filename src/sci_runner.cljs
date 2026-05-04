@@ -15,7 +15,8 @@
    [cljs-workers.core :as main]
    [sci-shared]
    [promesa.core]
-
+   ["@capacitor/core" :refer [Capacitor]]
+   ["@capacitor/browser" :refer [Browser] :as browser]
    [container.timeline.item]
    [input.composer]
    [utils.logger]
@@ -58,6 +59,8 @@
      (:namespaces sci-reagent/config)
      (:namespaces sci-re-frame/config)
      {'user {'defoverride defoverride-macro}
+      'capacitor.browser {'Browser Browser}
+      'capacitor.core    {'Capacitor Capacitor}
       'sci-runner {'!current-eval-plugin !current-eval-plugin}
 
       'taoensso.timbre {'info  log-info-macro
