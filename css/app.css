@@ -49,16 +49,6 @@ html, body {
 }
 
 
-:root {
-    --app-cushion-top: env(safe-area-inset-top, 0px);
-    --app-cushion-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-:root[data-platform="ios"] {
-    --app-cushion-bottom: 8px;
-}
-
-
 #app {
     height: 100%;
     width: 100%;
