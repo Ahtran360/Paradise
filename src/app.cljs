@@ -265,18 +265,22 @@
                 (fn [_]
                   (re-frame/dispatch [:native/hardware-back]))))
 
+
 (defn main-layout []
   (r/with-let [!drag-state (r/atom {:start-x nil :dx 0})]
     (let [auth-status   @(re-frame/subscribe [:auth/status])
           sidebar-open? @(re-frame/subscribe [:ui/sidebar-open?])
           update-ready? @(re-frame/subscribe [:app/update-available?])
-
+          platform         (.getPlatform js/Capacitor)
+          cushion       (if (= platform "ios")
+                          "8px"
+                          "env(safe-area-inset-bottom, 0px)")
           swipe-props (make-swipe-handlers
                        !drag-state
                        {:on-end (fn [dx]
                                   (let [start-x (:start-x @!drag-state)]
                                     (cond
-                                      (and (not sidebar-open?) (> dx 60))
+                                      (and (not sidebar-open?) #_ (< start-x 40) (> dx 60))
                                       (re-frame/dispatch [:ui/set-sidebar true])
                                       (and sidebar-open? (< dx -60))
                                       (re-frame/dispatch [:ui/set-sidebar false]))))})]
@@ -296,18 +300,21 @@
          (into [:div.app-root
                 (merge {:class (when sidebar-open? "sidebars-open")
                         :style {:touch-action "pan-y"
-                                :padding-bottom "var(--app-cushion-bottom)"}}
+                                :padding-bottom cushion
+                                }}
                        swipe-props)]
                [[spaces-sidebar]
                 [room-list]
                 (when sidebar-open?
                   [:div.mobile-overlay {:on-click #(re-frame/dispatch [:ui/set-sidebar false])}])
-                [container]])
+                [container]
+                ])
          [modal-root]
          [popover-root]
          [global-key-listener]
          [global-context-menu]]
         [:div "Unknown State"]))))
+
 
 (defn init-window-size-listener! []
   (re-frame/dispatch [:ui/window-resized (.-innerWidth js/window)])
@@ -320,9 +327,6 @@
 
 (defonce root (atom nil))
 
-(defn inject-platform! []
-  (.setAttribute (.-documentElement js/document) "data-platform" (.getPlatform js/Capacitor)))
-
 (defn mount-root []
   (re-frame/dispatch [:ui/switch-theme])
   (re-frame/clear-subscription-cache!)
@@ -331,8 +335,6 @@
       (reset! root (rdom/create-root container)))
     (init-window-size-listener!)
     (init-capacitor-listeners!)
-    (inject-platform!)
-
     (.render @root (r/as-element [main-layout]))))
 
 (defn ^:export init []
