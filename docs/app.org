@@ -49,7 +49,6 @@ actual UI components themselves.
    [taoensso.tempura :as tempura :refer [tr]]
    [utils.global-ui :refer [global-reaction-picker modal-root popover-root global-context-menu satellite-overlay make-swipe-handlers]]
    ["@capacitor/app" :refer [App]]
-   ["@capacitor-community/safe-area" :refer [SafeArea]]
    [utils.macros :refer [i18n-data]]
    [utils.svg :as icons]
    [navigation.rooms.room-list :refer [room-list]]
