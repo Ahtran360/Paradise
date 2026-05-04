@@ -23,7 +23,6 @@
    [taoensso.tempura :as tempura :refer [tr]]
    [utils.global-ui :refer [global-reaction-picker modal-root popover-root global-context-menu satellite-overlay make-swipe-handlers]]
    ["@capacitor/app" :refer [App]]
-   ["@capacitor-community/safe-area" :refer [SafeArea]]
    [utils.macros :refer [i18n-data]]
    [utils.svg :as icons]
    [navigation.rooms.room-list :refer [room-list]]
@@ -87,7 +86,7 @@
                         (:active-popover db) (conj [:ui/close-popover]))]
        (merge
         {:db (assoc-in db [:ui :sidebar-open?] true)
-         :native/hide-keyboard nil
+        ;; :native/hide-keyboard nil
          :ui/blur-active nil}
         (when (seq dispatches)
           {:dispatch-n dispatches})))
@@ -266,25 +265,18 @@
                 (fn [_]
                   (re-frame/dispatch [:native/hardware-back]))))
 
-(defn set-status-bar! []
-  (.setSystemBarsStyle SafeArea #js {:style "DARK"}))
-
-
 (defn main-layout []
   (r/with-let [!drag-state (r/atom {:start-x nil :dx 0})]
     (let [auth-status   @(re-frame/subscribe [:auth/status])
           sidebar-open? @(re-frame/subscribe [:ui/sidebar-open?])
           update-ready? @(re-frame/subscribe [:app/update-available?])
-          platform         (.getPlatform js/Capacitor)
-          cushion       (if (= platform "ios")
-                          "8px"
-                          "env(safe-area-inset-bottom, 0px)")
+
           swipe-props (make-swipe-handlers
                        !drag-state
                        {:on-end (fn [dx]
                                   (let [start-x (:start-x @!drag-state)]
                                     (cond
-                                      (and (not sidebar-open?) #_ (< start-x 40) (> dx 60))
+                                      (and (not sidebar-open?) (> dx 60))
                                       (re-frame/dispatch [:ui/set-sidebar true])
                                       (and sidebar-open? (< dx -60))
                                       (re-frame/dispatch [:ui/set-sidebar false]))))})]
@@ -304,21 +296,18 @@
          (into [:div.app-root
                 (merge {:class (when sidebar-open? "sidebars-open")
                         :style {:touch-action "pan-y"
-                                :padding-bottom cushion
-                                }}
+                                :padding-bottom "var(--app-cushion-bottom)"}}
                        swipe-props)]
                [[spaces-sidebar]
                 [room-list]
                 (when sidebar-open?
                   [:div.mobile-overlay {:on-click #(re-frame/dispatch [:ui/set-sidebar false])}])
-                [container]
-                ])
+                [container]])
          [modal-root]
          [popover-root]
          [global-key-listener]
          [global-context-menu]]
         [:div "Unknown State"]))))
-
 
 (defn init-window-size-listener! []
   (re-frame/dispatch [:ui/window-resized (.-innerWidth js/window)])
@@ -331,16 +320,18 @@
 
 (defonce root (atom nil))
 
-(defn mount-root []
-(.enable SafeArea nil)
+(defn inject-platform! []
+  (.setAttribute (.-documentElement js/document) "data-platform" (.getPlatform js/Capacitor)))
 
- (re-frame/dispatch [:ui/switch-theme])
+(defn mount-root []
+  (re-frame/dispatch [:ui/switch-theme])
   (re-frame/clear-subscription-cache!)
   (let [container (.getElementById js/document "root")]
     (when-not @root
       (reset! root (rdom/create-root container)))
     (init-window-size-listener!)
     (init-capacitor-listeners!)
+    (inject-platform!)
 
     (.render @root (r/as-element [main-layout]))))
 
