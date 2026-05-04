@@ -466,7 +466,9 @@ Ideally, we should break this apart more later.
                   :onSuggestionExit  (fn [] (reset! !sug-command nil))
                   :onEditLast (fn []
                                 (when last-own-msg
-                                  (re-frame/dispatch [:input/set-context active-id :edit last-own-msg])))}]]
+                                  (re-frame/dispatch [:input/set-context active-id :edit last-own-msg])))
+                  :onCancel (when (= (:mode context) :reply)
+                              (fn [] (re-frame/dispatch [:input/clear-context active-id])))}]]
            [plugins/plugin-slot :composer-actions {:room-id active-id}]
            [timeline-emoji-button {:on-click #(if picker-open?
                                                 (re-frame/dispatch [:ui/close-popover])
