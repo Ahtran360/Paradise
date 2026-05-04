@@ -1025,6 +1025,7 @@ I should clean this up, but at least it is grouped with the code for now
 
 .sidebar-profile-mini {
   padding: 12px 0;
+  bottom: var(--app-cushion-bottom);
   display: flex;
   justify-content: center;
   align-items: center;
