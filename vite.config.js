@@ -4,6 +4,7 @@ import topLevelAwait from "vite-plugin-top-level-await";
 import { viteStaticCopy } from "vite-plugin-static-copy";
 import { VitePWA } from "vite-plugin-pwa";
 import commonjs from "vite-plugin-commonjs";
+import basicSsl from "@vitejs/plugin-basic-ssl";
 import path from "path";
 import fs from "node:fs";
 import * as babel from "@babel/core";
@@ -47,6 +48,7 @@ export default defineConfig(({ mode }) => {
         publicDir: "../public",
         root: "./build",
         plugins: [
+            basicSsl(),
             wasm(),
             commonjs({
                 filter(id) {
@@ -176,6 +178,13 @@ export default defineConfig(({ mode }) => {
             headers: {
                 "Cross-Origin-Opener-Policy": "same-origin",
                 "Cross-Origin-Embedder-Policy": "credentialless",
+            },
+            proxy: {
+                "/api": {
+                    target: "http://localhost:9630",
+                    ws: true,
+                    changeOrigin: true,
+                },
             },
             fs: {
                 allow: [
