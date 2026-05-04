@@ -130,7 +130,7 @@ https://day8.github.io/re-frame/application-state/
                         (:active-popover db) (conj [:ui/close-popover]))]
        (merge
         {:db (assoc-in db [:ui :sidebar-open?] true)
-         :native/hide-keyboard nil
+        ;; :native/hide-keyboard nil
          :ui/blur-active nil}
         (when (seq dispatches)
           {:dispatch-n dispatches})))
