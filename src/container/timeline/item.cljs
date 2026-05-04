@@ -407,6 +407,16 @@
  (fn [db [_ url]]
    (get-in db [:url-previews url])))
 
+(re-frame/reg-event-db
+ :media/play-inline
+ (fn [db [_ url]]
+   (assoc-in db [:inline-playing url] true)))
+
+(re-frame/reg-sub
+ :media/playing-inline?
+ (fn [db [_ url]]
+   (get-in db [:inline-playing url] false)))
+
 (defui link-preview-card [url hs-url]
   (let [{:keys [status data]} @(re-frame/subscribe [:media/url-preview url])]
     (cond
