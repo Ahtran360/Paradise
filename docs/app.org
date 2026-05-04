@@ -651,10 +651,9 @@ when we detatch and reload (basically when you hit control + s to save).
 #+begin_src clojurescript :tangle ../src/app.cljs
 (defonce root (atom nil))
 
-(defn mount-root []
-(.enable SafeArea nil)
 
- (re-frame/dispatch [:ui/switch-theme])
+(defn mount-root []
+  (re-frame/dispatch [:ui/switch-theme])
   (re-frame/clear-subscription-cache!)
   (let [container (.getElementById js/document "root")]
     (when-not @root
