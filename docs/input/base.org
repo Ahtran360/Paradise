@@ -258,10 +258,11 @@ forward.
  (fn [db [_ room-id mode target-item]]
    (assoc-in db [:input-context room-id] {:mode mode :target target-item})))
 
-(re-frame/reg-event-db
+(re-frame/reg-event-fx
  :input/clear-context
- (fn [db [_ room-id]]
-   (update db :input-context dissoc room-id)))
+ (fn [{:keys [db]} [_ room-id refocus?]]
+   {:db (update db :input-context dissoc room-id)
+    :input/focus-composer refocus?}))
 
 (re-frame/reg-sub
  :input/context
@@ -306,7 +307,10 @@ be used.
           [:> tiptap-component
            #js {:activeId active-id
                 :loadedText initial-text
-                :onEditorReady #(reset! !editor %)
+                :onEditorReady (fn [ed]
+                                 (reset! !editor ed)
+                                 (js/setTimeout #(.commands.focus ed "end") 0))
+                :onCancel #(re-frame/dispatch [:input/clear-context active-id true])
                 :onSend (fn [text html]
                           (let [matrix-html (get-matrix-formatted-body @!editor)]
                             (re-frame/dispatch [:msg/edit active-id item text matrix-html])
