@@ -268,7 +268,6 @@
                                        (max 0 (- max-s st))
                                        0))))
 
-                  current-dist (get-dist el)
                   total-height @!current-height
                   positioned   @!current-positioned
                   focus-mode?  @!current-focus
@@ -277,17 +276,25 @@
               (when (not= total-height (:total-height state))
                 (log/info "\n==================================")
                 (log/info "[TIMELINE-UPDATE] Height shift detected!")
-
                 (let [old-anchor-item (first (filter #(= (:id %) (:id state)) positioned))]
                   (if old-anchor-item
-                    (let [drift (- (:bottom old-anchor-item) (:anchor-bottom state))]
-                      (if (zero? drift)
-                        (log/info "--> ACTION: SKIPPED. Coordinate drift is 0 px.")
-                        (if (and (<= current-dist 5) (not was-loading?) (not focus-mode?))
-                          (log/info "--> ACTION: SKIPPED. At bottom. Letting Live message hug.")
-                          (do
-                            (log/info "--> ACTION: Applying Coordinate Drift (" drift "px)")
-                            (set! (.-scrollTop el) (- (.-scrollTop el) drift))))))
+                    (let [expected-dist (+ (:bottom old-anchor-item) (:offset state))]
+                      (let [sync-dist (get-dist el)
+                            sync-err  (- sync-dist expected-dist)]
+                        (if (zero? sync-err)
+                          (log/info "--> ACTION: SKIPPED. Scroll is synchronously anchored.")
+                          (if (and (<= sync-dist 5) (not was-loading?) (not focus-mode?))
+                            (log/info "--> ACTION: SKIPPED. At bottom. Letting Live message hug.")
+                            (do
+                              (log/info "--> ACTION: Correcting Sync Drift (" sync-err "px)")
+                              (set! (.-scrollTop el) (+ (.-scrollTop el) sync-err))))))
+                      (js/requestAnimationFrame
+                       (fn []
+                         (let [async-dist (get-dist el)
+                               async-err  (- async-dist expected-dist)]
+                           (when (and (not (zero? async-err)) (> async-dist 5))
+                             (log/info "--> ACTION: Correcting Asynchronous Browser Snap (" async-err "px)")
+                             (set! (.-scrollTop el) (+ (.-scrollTop el) async-err)))))))
                     (log/warn "--> WARNING: Target Anchor ID NOT FOUND in positioned array! Node unmounted?")))
                 (log/info "==================================\n"))
 
@@ -500,3 +507,4 @@
 
            (when (or @!show-jump? (not @!at-bottom?))
              [timeline-jump-button do-jump! focus-mode?])]))})))
+
