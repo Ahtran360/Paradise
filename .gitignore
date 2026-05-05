@@ -36,3 +36,6 @@ themes/
 build/
 
 quick.sh
+# Claude Code workspace files
+CLAUDE.md
+CLAUDE_changelog.md
