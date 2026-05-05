@@ -1003,6 +1003,11 @@ state for now.
                           :display-name (or (:display-name member-data) sender-name)
                           :avatar-url (or (:avatar-url member-data) (mxc->url sender-avatar {:homeserver hs-url :type :thumbnail :width 48 :height 48}))
                           :power-level (or (:power-level member-data) 0)}
+        html-body        (get-in content [:inner :content :html])
+        text-body        (get-in content [:inner :content :body])
+        is-mentioned?    (and my-id
+                              (or (and (string? html-body) (str/includes? html-body my-id))
+                                  (and (string? text-body) (str/includes? text-body my-id))))
         open-menu-fn     (fn [mx my]
                            (re-frame/dispatch
                             [:context-menu/open
@@ -1018,7 +1023,8 @@ state for now.
           :on-action (fn [action] (re-frame/dispatch [:input/set-context active-room action item]))
           :wrapper-props (merge (long-press-props open-menu-fn)
                                 {:class (str "timeline-message is-message"
-                                             (when merge-with-prev? " is-merged"))})}
+                                             (when merge-with-prev? " is-merged")
+                                             (when is-mentioned? " is-mentioned"))})}
 
          [timeline-avatar content-tag merge-with-prev? popover-member custom-tags active-room]
          [:div.timeline-content-wrapper
