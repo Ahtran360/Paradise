@@ -642,6 +642,16 @@ read receipts. This prevents any sort of spamming to the home server.
   object-fit: cover;
 }
 
+.user-mention-pill {
+  background: #8395ca4f;
+  border: 1px solid #fff;
+  border-radius: 8px;
+  padding: 1px 4px;
+  font-weight: 600;
+  color: #fff;
+  font-size: 0.9em;
+}
+
 #+end_src
 
 
