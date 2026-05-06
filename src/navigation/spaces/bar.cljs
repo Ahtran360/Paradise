@@ -191,4 +191,12 @@
      [:div.sidebar-divider]
      [:div.spaces-list-container
       [virtualized-space-bar spaces active-id]]
+     [:div.sidebar-divider]
+     [:div.sidebar-search-btn
+      {:on-click #(re-frame/dispatch [:ui/open-modal :quick-switcher
+                                      {:backdrop-props {:class "lightbox-backdrop"}
+                                       :window-props   {:style {:background "transparent"
+                                                                 :box-shadow "none"}}}])
+       :title (tr [:navigation.spaces.bar/search])}
+      [icons/search {:size "20px" :color "currentColor"}]]
      [sidebar-profile-mini]]))

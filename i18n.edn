@@ -125,7 +125,8 @@
                    :no-results "No results found"}
     :headers {:home "Paradise"}}
    :spaces
-   {:bars {:home "Paradise"}}}
+   {:bars {:home "Paradise"}
+    :bar  {:search "Search rooms"}}}
   :quick-switcher
   {:placeholder "Jump to a room..."
    :empty "No rooms found."
