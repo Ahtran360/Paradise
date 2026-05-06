@@ -642,6 +642,16 @@ read receipts. This prevents any sort of spamming to the home server.
   object-fit: cover;
 }
 
+.user-mention-pill {
+  background: #8395ca4f;
+  border: 1px solid #fff;
+  border-radius: 8px;
+  padding: 1px 4px;
+  font-weight: 600;
+  color: #fff;
+  font-size: 0.9em;
+}
+
 #+end_src
 
 
@@ -993,6 +1003,15 @@ state for now.
                           :display-name (or (:display-name member-data) sender-name)
                           :avatar-url (or (:avatar-url member-data) (mxc->url sender-avatar {:homeserver hs-url :type :thumbnail :width 48 :height 48}))
                           :power-level (or (:power-level member-data) 0)}
+        html-body        (get-in content [:inner :content :html])
+        text-body        (get-in content [:inner :content :body])
+        events-map       @(re-frame/subscribe [:timeline/events-map active-room])
+        reply-id         (get-in content [:in-reply-to :event-id])
+        reply-msg        (when reply-id (get events-map reply-id))
+        is-mentioned?    (and my-id
+                              (or (and (string? html-body) (str/includes? html-body my-id))
+                                  (and (string? text-body) (str/includes? text-body my-id))
+                                  (= (:sender-id reply-msg) my-id)))
         open-menu-fn     (fn [mx my]
                            (re-frame/dispatch
                             [:context-menu/open
@@ -1008,7 +1027,8 @@ state for now.
           :on-action (fn [action] (re-frame/dispatch [:input/set-context active-room action item]))
           :wrapper-props (merge (long-press-props open-menu-fn)
                                 {:class (str "timeline-message is-message"
-                                             (when merge-with-prev? " is-merged"))})}
+                                             (when merge-with-prev? " is-merged")
+                                             (when is-mentioned? " is-mentioned"))})}
 
          [timeline-avatar content-tag merge-with-prev? popover-member custom-tags active-room]
          [:div.timeline-content-wrapper
