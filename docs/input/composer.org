@@ -227,28 +227,35 @@ https://tiptap.dev/docs/editor/core-concepts/extensions
 This determines the 'submit' behavior for the editor.
 ~getEnterForNewLine~ is a function option (read from the latest-cbs ref each keypress)
 so the setting takes effect immediately without recreating the editor.
-When it returns truthy, Enter inserts a newline instead of sending.
+
+When the toggle is OFF: Enter sends, Shift-Enter inserts a hard break (default).
+When the toggle is ON:  Enter inserts a new paragraph (default), Shift-Enter sends.
+
+Priority is set high so this fires before StarterKit's HardBreak (which also binds Shift-Enter).
 #+begin_src clojurescript :tangle ../../src/input/composer.cljs
 (def submit-extension
   (.create Extension
            #js {:name "submitExtension"
+                :priority 1000
                 :addOptions (fn [] #js {:onSend nil :getEnterForNewLine nil})
                 :addKeyboardShortcuts
                 (fn []
                   (this-as this
-                           #js {"Enter" (fn [context]
-                                          (let [get-mode (.. this -options -getEnterForNewLine)
-                                                newline? (when get-mode (get-mode))]
-                                            (if newline?
-                                              false
-                                              (let [editor  (.-editor context)
-                                                    text    (.getText editor)
-                                                    html    (.getHTML editor)
-                                                    on-send (.. this -options -onSend)]
-                                                (when (and on-send (on-send text html))
-                                                  (.commands.clearContent editor true))
-                                                true))))
-                                "Shift-Enter" (fn [] false)}))}))
+                    (let [newline-mode? (fn []
+                                          (let [get-mode (.. this -options -getEnterForNewLine)]
+                                            (boolean (when get-mode (get-mode)))))
+                          send!         (fn [context]
+                                          (let [editor  (.-editor context)
+                                                text    (.getText editor)
+                                                html    (.getHTML editor)
+                                                on-send (.. this -options -onSend)]
+                                            (when (and on-send (on-send text html))
+                                              (.commands.clearContent editor true))
+                                            true))]
+                      #js {"Enter"       (fn [context]
+                                           (if (newline-mode?) false (send! context)))
+                           "Shift-Enter" (fn [context]
+                                           (if (newline-mode?) (send! context) false))})))}))
 #+end_src
 
 
