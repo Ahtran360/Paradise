@@ -480,46 +480,47 @@ Simple verification tab for now
           error           @(re-frame/subscribe [:verification/error])
           is-verifying?   (= status :verifying)
           is-empty?       (empty? @!passphrase)]
-      [:div.settings-section
-       [:h2.verification-title (tr [:settings.verification/title])]
-       (cond
-         (= status :enabled)
-         [:div.success-banner
-          [:div.success-icon [icons/check-circle-green]]
-          [:div
-           [:div.success-title (tr [:settings.verification.status/success-title])]
-           [:div.success-subtitle (tr [:settings.verification.status/success-subtitle])]]]
+      [:div.settings-tab-content
+       [:h2.settings-heading (tr [:settings.verification/title])]
+       [:div.settings-section
+        (cond
+          (= status :enabled)
+          [:div.success-banner
+           [:div.success-icon [icons/check-circle-green]]
+           [:div
+            [:div.success-title (tr [:settings.verification.status/success-title])]
+            [:div.success-subtitle (tr [:settings.verification.status/success-subtitle])]]]
 
-         (or (= status :incomplete) (= status :verifying) (= status :error))
-         [:<>
-          [:p.verification-description (tr [:settings.verification/description])]
-          [:div.verification-form
-           [:label.form-label (tr [:settings.verification.form/label])]
-           [:input.form-input
-            {:class      (when error "is-invalid")
-             :type       "password"
-             :value      @!passphrase
-             :on-change  #(reset! !passphrase (.. % -target -value))
-             :disabled   is-verifying?
-             :placeholder (tr [:settings.verification.form/placeholder])}]
-           (when error
-             [:div.form-error (str (tr [:settings.verification.form/error-prefix]) error)])
-           [:button.form-button
-            {:class    (when is-verifying? "is-verifying")
-             :on-click #(re-frame/dispatch [:sdk/submit-verification @!passphrase])
-             :disabled (or is-empty? is-verifying?)}
-            (if is-verifying?
-              (tr [:settings.verification.status/is-verifying])
-              (tr [:settings.verification.status/verify-action]))]]]
+          (or (= status :incomplete) (= status :verifying) (= status :error))
+          [:<>
+           [:p.verification-description (tr [:settings.verification/description])]
+           [:div.verification-form
+            [:label.form-label (tr [:settings.verification.form/label])]
+            [:input.form-input
+             {:class      (when error "is-invalid")
+              :type       "password"
+              :value      @!passphrase
+              :on-change  #(reset! !passphrase (.. % -target -value))
+              :disabled   is-verifying?
+              :placeholder (tr [:settings.verification.form/placeholder])}]
+            (when error
+              [:div.form-error (str (tr [:settings.verification.form/error-prefix]) error)])
+            [:button.form-button
+             {:class    (when is-verifying? "is-verifying")
+              :on-click #(re-frame/dispatch [:sdk/submit-verification @!passphrase])
+              :disabled (or is-empty? is-verifying?)}
+             (if is-verifying?
+               (tr [:settings.verification.status/is-verifying])
+               (tr [:settings.verification.status/verify-action]))]]]
 
-         (= status :disabled)
-         [:div.warning-banner
-          [:div.warning-title (tr [:settings.verification.status/warning-title])]
-          [:div.warning-subtitle (tr [:settings.verification.status/warning-subtitle])]]
+          (= status :disabled)
+          [:div.warning-banner
+           [:div.warning-title (tr [:settings.verification.status/warning-title])]
+           [:div.warning-subtitle (tr [:settings.verification.status/warning-subtitle])]]
 
-         :else
-         [:div.loading-state
-          [:span (tr [:settings.verification.status/checking])]])])))
+          :else
+          [:div.loading-state
+           [:span (tr [:settings.verification.status/checking])]])]])))
 
 #+end_src
 
@@ -844,10 +845,10 @@ You want to ensure the language options are easy to find for the user.
   (let [tr          @(re-frame/subscribe [:i18n/tr])
         locale      @(re-frame/subscribe [:i18n/locale])]
     [:div.settings-tab-content
-     [:h2.settings-heading (tr [:settings.language/title])]
+     [:h2.settings-heading (tr [:settings.language-time/title])]
      [:div.settings-section
-      [:p.verification-description (tr [:settings.language/description])]
-      [:h3.settings-subheading (tr [:settings.language/system-label])]
+      [:p.verification-description (tr [:settings.language-time/description])]
+      [:h3.settings-subheading (tr [:settings.language-time/system-label])]
       [:div.language-list
        (for [[id label native] [[:en "English" "English"]
                                 [:lorem "Lorem Ipsum" "Lorem Ipsum"]]]
