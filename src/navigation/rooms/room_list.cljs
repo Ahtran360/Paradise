@@ -284,6 +284,14 @@
       :input/focus-composer (not mobile?)
       :dispatch-n         dispatches})))
 
+(re-frame/reg-event-fx
+ :rooms/mark-read
+ (fn [_ [_ room-id]]
+   (main/do-with-pool! @state/!engine-pool
+                       {:handler :mark-room-read
+                        :arguments {:room-id room-id}})
+   {}))
+
 
 (defn filter-toggle-bar []
   (let [tr            @(re-frame/subscribe [:i18n/tr])

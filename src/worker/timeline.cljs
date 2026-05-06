@@ -219,7 +219,10 @@
               _        (when (:back paginate-amount)
                          (.paginateBackwards tl (:back paginate-amount)))]
         (swap! !active-timelines assoc-in [room-id source]
-               {:timeline tl :handle handle :t-handle t-handle :p-handle p-handle}))
+               {:timeline tl :handle handle :t-handle t-handle :p-handle p-handle})
+        (when is-live?
+          (-> (.markAsRead tl (.-Read ReceiptType))
+              (p/catch #(log/warn "Could not mark room as read on open:" %)))))
       (p/catch #(log/error source "boot failed:" %))
       (p/finally #(worker/stream! {:type "timeline-loading" :room-id room-id :loading? false}))))
 
@@ -356,6 +359,16 @@
           (catch :default e
             (log/error "Rust SDK rejected read receipt for ID:" event-id)
             {:status :error :msg (str e)}))
+        {:status :error :msg "Timeline not found"}))))
+
+(worker/register :mark-room-read
+  (fn [{:keys [room-id]}]
+    (go
+      (if-let [tl (get-in @!active-timelines [room-id :live :timeline])]
+        (try
+          (<p! (.markAsRead tl (.-Read ReceiptType)))
+          {:status :success}
+          (catch :default e {:status :error :msg (str e)}))
         {:status :error :msg "Timeline not found"}))))
 
 (worker/register :redact-event
