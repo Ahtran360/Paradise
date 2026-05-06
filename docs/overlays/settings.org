@@ -319,6 +319,7 @@ Moving the CSS to here
   align-items: center;
   border-top: 1px solid #1e1f22;
   position: relative;
+  flex-shrink: 0;
 }
 
 .profile-avatar, .avatar-placeholder {
@@ -434,10 +435,6 @@ navigational components.
   (let [tr      @(re-frame/subscribe [:i18n/tr])
         profile @(re-frame/subscribe [:sdk/profile])]
     [:div.sidebar-profile-mini
-     {:style {
-              :bottom "env(safe-area-inset-bottom, 16px)"
-              :position "absolute"
-              }}
      [:div.profile-trigger
       {:style {:user-select "none"}
        :on-click (fn [e]
