@@ -362,14 +362,15 @@ Ideally, we should break this apart more later.
   (r/with-let [!editor       (r/atom nil)
                !sug-command  (r/atom nil)]
     (fn []
-      (let [active-id      @(re-frame/subscribe [:rooms/active-id])
-            uploading?     @(re-frame/subscribe [:input/uploading?])
-            attachments    @(re-frame/subscribe [:composer/attachments active-id])
-            loaded-text    @(re-frame/subscribe [:composer/loaded-text active-id])
-            cached-html    @(re-frame/subscribe [:composer/cached-html active-id])
-            context        @(re-frame/subscribe [:input/context active-id])
-            picker-open?   @(re-frame/subscribe [:ui/inline-emoji-open?])
-            tr             @(re-frame/subscribe [:i18n/tr])
+      (let [active-id         @(re-frame/subscribe [:rooms/active-id])
+            uploading?        @(re-frame/subscribe [:input/uploading?])
+            attachments       @(re-frame/subscribe [:composer/attachments active-id])
+            loaded-text       @(re-frame/subscribe [:composer/loaded-text active-id])
+            cached-html       @(re-frame/subscribe [:composer/cached-html active-id])
+            context           @(re-frame/subscribe [:input/context active-id])
+            picker-open?      @(re-frame/subscribe [:ui/inline-emoji-open?])
+            enter-for-newline @(re-frame/subscribe [:settings/enter-for-new-line?])
+            tr                @(re-frame/subscribe [:i18n/tr])
             submit-message! (fn []
                               (when-let [ed @!editor]
                                 (let [text        (.getText ed)
@@ -461,6 +462,7 @@ Ideally, we should break this apart more later.
                                (re-frame/dispatch [:sdk/handle-file-drop active-id file-array])))
                   :placeholder (tr [:composer/placeholder])
                   :onEditorReady #(reset! !editor %)
+                  :enterForNewLine (boolean enter-for-newline)
                   :onSuggestionStart (fn [cmd] (reset! !sug-command cmd))
                   :onSuggestionExit  (fn [] (reset! !sug-command nil))}]]
            [plugins/plugin-slot :composer-actions {:room-id active-id}]

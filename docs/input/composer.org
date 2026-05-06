@@ -225,23 +225,37 @@ https://tiptap.dev/docs/editor/core-concepts/extensions
 **** Submit Extension
 
 This determines the 'submit' behavior for the editor.
+~getEnterForNewLine~ is a function option (read from the latest-cbs ref each keypress)
+so the setting takes effect immediately without recreating the editor.
+
+When the toggle is OFF: Enter sends, Shift-Enter inserts a hard break (default).
+When the toggle is ON:  Enter inserts a new paragraph (default), Shift-Enter sends.
+
+Priority is set high so this fires before StarterKit's HardBreak (which also binds Shift-Enter).
 #+begin_src clojurescript :tangle ../../src/input/composer.cljs
 (def submit-extension
   (.create Extension
            #js {:name "submitExtension"
-                :addOptions (fn [] #js {:onSend nil})
+                :priority 1000
+                :addOptions (fn [] #js {:onSend nil :getEnterForNewLine nil})
                 :addKeyboardShortcuts
                 (fn []
                   (this-as this
-                           #js {"Enter" (fn [context]
+                    (let [newline-mode? (fn []
+                                          (let [get-mode (.. this -options -getEnterForNewLine)]
+                                            (boolean (when get-mode (get-mode)))))
+                          send!         (fn [context]
                                           (let [editor  (.-editor context)
                                                 text    (.getText editor)
                                                 html    (.getHTML editor)
                                                 on-send (.. this -options -onSend)]
                                             (when (and on-send (on-send text html))
                                               (.commands.clearContent editor true))
-                                            true))
-                                "Shift-Enter" (fn [] false)}))}))
+                                            true))]
+                      #js {"Enter"       (fn [context]
+                                           (if (newline-mode?) false (send! context)))
+                           "Shift-Enter" (fn [context]
+                                           (if (newline-mode?) (send! context) false))})))}))
 #+end_src
 
 
@@ -263,15 +277,18 @@ so we stick with what the complex component expects.
         cached-html  (.. props -children -cachedHtml)
         placeholder  (.. props -children -placeholder)
         on-ready     (.. props -children -onEditorReady)
-        latest-cbs   (react/useRef #js {:onSend on-send :onFiles on-files})
-        _            (set! (.-current latest-cbs) #js {:onSend on-send :onFiles on-files})
+        enter-for-newline (.. props -children -enterForNewLine)
+        latest-cbs        (react/useRef #js {:onSend on-send :onFiles on-files :enterForNewLine enter-for-newline})
+        _                 (set! (.-current latest-cbs) #js {:onSend on-send :onFiles on-files :enterForNewLine enter-for-newline})
         editor (useEditor
                 #js {:extensions #js [(.configure StarterKit #js {})
                                       (.configure Placeholder #js {:placeholder placeholder})
                                       (.configure submit-extension
                                       #js {:onSend (fn [text html]
                                                      (let [cb (.-onSend (.-current latest-cbs))]
-                                                       (when cb (cb text html))))})
+                                                       (when cb (cb text html))))
+                                           :getEnterForNewLine (fn []
+                                                                 (.-enterForNewLine (.-current latest-cbs)))})
                                       (.configure file-drop-extension
                                       #js {:onFiles (fn [files]
                                                       (let [cb (.-onFiles (.-current latest-cbs))]
