@@ -87,6 +87,10 @@
       (contains? url-schemes scheme))
     false))
 
+(defn- user-mention-href? [href]
+  (and (string? href)
+       (str/starts-with? href "https://matrix.to/#/@")))
+
 (defn sanitize-nodes [nodes depth]
   (if (> depth max-tag-nesting)
     []
@@ -108,7 +112,10 @@
                    [final-tag final-attrs transformed-content]
                    (case tag
                      (:font :span) [tag (transform-font-span clean-attrs) nil]
-                     :a            [tag (transform-a clean-attrs) nil]
+                     :a            (if (user-mention-href? (:href clean-attrs))
+                                     [:span {:class "user-mention-pill"}
+                                      (sanitize-nodes content (inc depth))]
+                                     [tag (transform-a clean-attrs) nil])
                      :code         [tag (filter-code-classes clean-attrs) nil]
                      :img          (let [{t :tag a :attrs c :content} (transform-img clean-attrs)]
                                      [t a c])

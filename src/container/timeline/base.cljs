@@ -335,6 +335,19 @@
      others)))
 
 
+
+(re-frame/reg-sub
+ :timeline/last-own-editable-message
+ (fn [[_ room-id]]
+   (re-frame/subscribe [:timeline/current-events room-id]))
+ (fn [events _]
+   (->> events
+        (filter #(and (:is-own? %)
+                      (= (:type %) :event)
+                      (= (:content-tag %) "MsgLike")))
+        last)))
+
+
 (defn status-indicator [active-room]
   (let [tr            @(re-frame/subscribe [:i18n/tr])
         typing-info   @(re-frame/subscribe [:room/typing-users active-room])

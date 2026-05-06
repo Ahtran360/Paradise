@@ -151,15 +151,17 @@
  (fn [db _]
    (:uploading-files? db false)))
 
-(re-frame/reg-event-db
+(re-frame/reg-event-fx
  :input/set-context
- (fn [db [_ room-id mode target-item]]
-   (assoc-in db [:input-context room-id] {:mode mode :target target-item})))
+ (fn [{:keys [db]} [_ room-id mode target-item]]
+   {:db (assoc-in db [:input-context room-id] {:mode mode :target target-item})
+    :input/focus-composer (= mode :reply)}))
 
-(re-frame/reg-event-db
+(re-frame/reg-event-fx
  :input/clear-context
- (fn [db [_ room-id]]
-   (update db :input-context dissoc room-id)))
+ (fn [{:keys [db]} [_ room-id refocus?]]
+   {:db (update db :input-context dissoc room-id)
+    :input/focus-composer refocus?}))
 
 (re-frame/reg-sub
  :input/context
@@ -196,7 +198,10 @@
           [:> tiptap-component
            #js {:activeId active-id
                 :loadedText initial-text
-                :onEditorReady #(reset! !editor %)
+                :onEditorReady (fn [ed]
+                                 (reset! !editor ed)
+                                 (js/setTimeout #(.commands.focus ed "end") 0))
+                :onCancel #(re-frame/dispatch [:input/clear-context active-id true])
                 :onSend (fn [text html]
                           (let [matrix-html (get-matrix-formatted-body @!editor)]
                             (re-frame/dispatch [:msg/edit active-id item text matrix-html])
@@ -234,14 +239,16 @@
   (r/with-let [!editor       (r/atom nil)
                !sug-command  (r/atom nil)]
     (fn []
-      (let [active-id      @(re-frame/subscribe [:rooms/active-id])
-            uploading?     @(re-frame/subscribe [:input/uploading?])
-            attachments    @(re-frame/subscribe [:composer/attachments active-id])
-            loaded-text    @(re-frame/subscribe [:composer/loaded-text active-id])
-            cached-html    @(re-frame/subscribe [:composer/cached-html active-id])
-            context        @(re-frame/subscribe [:input/context active-id])
-            picker-open?   @(re-frame/subscribe [:ui/inline-emoji-open?])
-            tr             @(re-frame/subscribe [:i18n/tr])
+      (let [active-id         @(re-frame/subscribe [:rooms/active-id])
+            uploading?        @(re-frame/subscribe [:input/uploading?])
+            attachments       @(re-frame/subscribe [:composer/attachments active-id])
+            loaded-text       @(re-frame/subscribe [:composer/loaded-text active-id])
+            cached-html       @(re-frame/subscribe [:composer/cached-html active-id])
+            context           @(re-frame/subscribe [:input/context active-id])
+            picker-open?      @(re-frame/subscribe [:ui/inline-emoji-open?])
+            enter-for-newline @(re-frame/subscribe [:settings/enter-for-new-line?])
+            tr                @(re-frame/subscribe [:i18n/tr])
+            last-own-msg      @(re-frame/subscribe [:timeline/last-own-editable-message active-id])
             submit-message! (fn []
                               (when-let [ed @!editor]
                                 (let [text        (.getText ed)
@@ -333,8 +340,14 @@
                                (re-frame/dispatch [:sdk/handle-file-drop active-id file-array])))
                   :placeholder (tr [:composer/placeholder])
                   :onEditorReady #(reset! !editor %)
+                  :enterForNewLine (boolean enter-for-newline)
                   :onSuggestionStart (fn [cmd] (reset! !sug-command cmd))
-                  :onSuggestionExit  (fn [] (reset! !sug-command nil))}]]
+                  :onSuggestionExit  (fn [] (reset! !sug-command nil))
+                  :onEditLast (fn []
+                                (when last-own-msg
+                                  (re-frame/dispatch [:input/set-context active-id :edit last-own-msg])))
+                  :onCancel (when (= (:mode context) :reply)
+                              (fn [] (re-frame/dispatch [:input/clear-context active-id])))}]]
            [plugins/plugin-slot :composer-actions {:room-id active-id}]
            [timeline-emoji-button {:on-click #(if picker-open?
                                                 (re-frame/dispatch [:ui/close-popover])

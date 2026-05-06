@@ -62,7 +62,8 @@
                                        "&skipLobby=" skip-lobby-str
                                        "&roomId=" (js/encodeURIComponent room-id)
                                        "&perParticipantE2EE=" (if is-encrypted? "true" "false")
-                                       "&theme=dark&lang=en")
+                                       "&theme=dark&lang=en"
+                                       "&videoMuted=true")
                    final-url      (str base widget-query app-fragment)]
 
                (set! (.-src target-iframe) final-url)

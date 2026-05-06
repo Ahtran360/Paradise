@@ -346,13 +346,23 @@
       [message-text content]])])
 
 (defn video-message [event content]
-  [:div.video-attachment-container
-   [async-media-wrapper event content {:class "media-video" :default-ratio 1.77}
-    (fn [url _]
-      [:video {:src url :controls true :style {:width "100%" :height "100%" :display "block"}} ])]
-   (when (seq (:caption content))
-     [:div.media-caption
-      [message-text content]])])
+  (let [info (:info content)
+        gif? (:gif? info)]
+    [:div.video-attachment-container
+     [async-media-wrapper event content {:class "media-video" :default-ratio 1.77}
+      (fn [url _]
+        (if gif?
+          [:video {:src           url
+                   :auto-play     true
+                   :loop          true
+                   :muted         true
+                   :plays-inline  true
+                   :controls      false
+                   :style         {:width "100%" :height "100%" :display "block"}}]
+          [:video {:src url :controls true :style {:width "100%" :height "100%" :display "block"}}]))]
+     (when (seq (:caption content))
+       [:div.media-caption
+        [message-text content]])]))
 
 (defn sticker-message [event content]
   [async-media-wrapper event content {:class "media-sticker" :default-ratio 1.0}
@@ -771,6 +781,15 @@
                           :display-name (or (:display-name member-data) sender-name)
                           :avatar-url (or (:avatar-url member-data) (mxc->url sender-avatar {:homeserver hs-url :type :thumbnail :width 48 :height 48}))
                           :power-level (or (:power-level member-data) 0)}
+        html-body        (get-in content [:inner :content :html])
+        text-body        (get-in content [:inner :content :body])
+        events-map       @(re-frame/subscribe [:timeline/events-map active-room])
+        reply-id         (get-in content [:in-reply-to :event-id])
+        reply-msg        (when reply-id (get events-map reply-id))
+        is-mentioned?    (and my-id
+                              (or (and (string? html-body) (str/includes? html-body my-id))
+                                  (and (string? text-body) (str/includes? text-body my-id))
+                                  (= (:sender-id reply-msg) my-id)))
         open-menu-fn     (fn [mx my]
                            (re-frame/dispatch
                             [:context-menu/open
@@ -786,7 +805,10 @@
           :on-action (fn [action] (re-frame/dispatch [:input/set-context active-room action item]))
           :wrapper-props (merge (long-press-props open-menu-fn)
                                 {:class (str "timeline-message is-message"
-                                             (when merge-with-prev? " is-merged"))})}
+                                             (when merge-with-prev? " is-merged")
+                                             (when is-mentioned? " is-mentioned"))}
+                                (when is-own?
+                                  {:on-double-click #(re-frame/dispatch [:input/set-context active-room :edit item])}))}
 
          [timeline-avatar content-tag merge-with-prev? popover-member custom-tags active-room]
          [:div.timeline-content-wrapper

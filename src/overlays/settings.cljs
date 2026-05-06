@@ -132,13 +132,29 @@
  (fn [db _] (:verification/error db)))
 
 
+(re-frame/reg-event-db
+ :settings/hydrate-enter-for-new-line
+ (fn [db [_ val]]
+   (assoc-in db [:settings :enter-for-new-line] val)))
+
+(re-frame/reg-event-fx
+ :settings/toggle-enter-for-new-line
+ (fn [{:keys [db]} [_ enabled?]]
+   {:db            (assoc-in db [:settings :enter-for-new-line] enabled?)
+    :settings/save ["enter_for_new_line" enabled?]}))
+
+(re-frame/reg-sub
+ :settings/enter-for-new-line?
+ (fn [db _]
+   (get-in db [:settings :enter-for-new-line] false)))
+
 (defn advanced-preferences-view []
-  (let [tr @(re-frame/subscribe [:i18n/tr])
-        policy       @(re-frame/subscribe [:settings/media-preview-policy])
-        previews-on? (= policy :on)]
+  (let [tr                @(re-frame/subscribe [:i18n/tr])
+        policy            @(re-frame/subscribe [:settings/media-preview-policy])
+        previews-on?      (= policy :on)
+        enter-for-newline @(re-frame/subscribe [:settings/enter-for-new-line?])]
     [:div.settings-section
-     [:h3.settings-subheading (tr [:settings.advanced/prefs-subheading])
-      ]
+     [:h3.settings-subheading (tr [:settings.advanced/prefs-subheading])]
      [:div.settings-row.toggle-row
       [:div.setting-text
        [:div.setting-title (tr [:settings.advanced/link-previews-title])]
@@ -148,6 +164,17 @@
                 :checked previews-on?
                 :on-change #(re-frame/dispatch [:settings/update-media-preview-policy
                                                 (if (.. % -target -checked) :on :off)])}]
+       [:div.toggle-track
+        [:div.toggle-knob]]]]
+     [:div.settings-row.toggle-row
+      [:div.setting-text
+       [:div.setting-title (tr [:settings.advanced/enter-new-line-title])]
+       [:div.setting-description (tr [:settings.advanced/enter-new-line-description])]]
+      [:label.custom-toggle
+       [:input {:type "checkbox"
+                :checked (boolean enter-for-newline)
+                :on-change #(re-frame/dispatch [:settings/toggle-enter-for-new-line
+                                                (.. % -target -checked)])}]
        [:div.toggle-track
         [:div.toggle-knob]]]]]))
 
@@ -181,11 +208,12 @@
 
 
 (def settings-registry
-  {;; DB Key                  Hydration Event                       Default Value
-   "show_previews"         {:event :push/hydrate-previews-setting :default true      :stage  :login }
-   "theme"                 {:event :ui/hydrate-theme              :default :default  :stage  :boot  }
-   "disabled_plugin_urls"  {:event :plugins/hydrate-disabled-urls :default []        :stage  :boot  }
-   "plugin_urls"           {:event :plugins/hydrate-urls          :default []        :stage  :boot  }})
+  {;; DB Key                  Hydration Event                            Default Value
+   "show_previews"         {:event :push/hydrate-previews-setting        :default true      :stage  :login }
+   "theme"                 {:event :ui/hydrate-theme                     :default :default  :stage  :boot  }
+   "disabled_plugin_urls"  {:event :plugins/hydrate-disabled-urls        :default []        :stage  :boot  }
+   "plugin_urls"           {:event :plugins/hydrate-urls                 :default []        :stage  :boot  }
+   "enter_for_new_line"    {:event :settings/hydrate-enter-for-new-line  :default false     :stage  :boot  }})
 
 
 (re-frame/reg-event-fx
@@ -253,46 +281,47 @@
           error           @(re-frame/subscribe [:verification/error])
           is-verifying?   (= status :verifying)
           is-empty?       (empty? @!passphrase)]
-      [:div.settings-section
-       [:h2.verification-title (tr [:settings.verification/title])]
-       (cond
-         (= status :enabled)
-         [:div.success-banner
-          [:div.success-icon [icons/check-circle-green]]
-          [:div
-           [:div.success-title (tr [:settings.verification.status/success-title])]
-           [:div.success-subtitle (tr [:settings.verification.status/success-subtitle])]]]
+      [:div.settings-tab-content
+       [:h2.settings-heading (tr [:settings.verification/title])]
+       [:div.settings-section
+        (cond
+          (= status :enabled)
+          [:div.success-banner
+           [:div.success-icon [icons/check-circle-green]]
+           [:div
+            [:div.success-title (tr [:settings.verification.status/success-title])]
+            [:div.success-subtitle (tr [:settings.verification.status/success-subtitle])]]]
 
-         (or (= status :incomplete) (= status :verifying) (= status :error))
-         [:<>
-          [:p.verification-description (tr [:settings.verification/description])]
-          [:div.verification-form
-           [:label.form-label (tr [:settings.verification.form/label])]
-           [:input.form-input
-            {:class      (when error "is-invalid")
-             :type       "password"
-             :value      @!passphrase
-             :on-change  #(reset! !passphrase (.. % -target -value))
-             :disabled   is-verifying?
-             :placeholder (tr [:settings.verification.form/placeholder])}]
-           (when error
-             [:div.form-error (str (tr [:settings.verification.form/error-prefix]) error)])
-           [:button.form-button
-            {:class    (when is-verifying? "is-verifying")
-             :on-click #(re-frame/dispatch [:sdk/submit-verification @!passphrase])
-             :disabled (or is-empty? is-verifying?)}
-            (if is-verifying?
-              (tr [:settings.verification.status/is-verifying])
-              (tr [:settings.verification.status/verify-action]))]]]
+          (or (= status :incomplete) (= status :verifying) (= status :error))
+          [:<>
+           [:p.verification-description (tr [:settings.verification/description])]
+           [:div.verification-form
+            [:label.form-label (tr [:settings.verification.form/label])]
+            [:input.form-input
+             {:class      (when error "is-invalid")
+              :type       "password"
+              :value      @!passphrase
+              :on-change  #(reset! !passphrase (.. % -target -value))
+              :disabled   is-verifying?
+              :placeholder (tr [:settings.verification.form/placeholder])}]
+            (when error
+              [:div.form-error (str (tr [:settings.verification.form/error-prefix]) error)])
+            [:button.form-button
+             {:class    (when is-verifying? "is-verifying")
+              :on-click #(re-frame/dispatch [:sdk/submit-verification @!passphrase])
+              :disabled (or is-empty? is-verifying?)}
+             (if is-verifying?
+               (tr [:settings.verification.status/is-verifying])
+               (tr [:settings.verification.status/verify-action]))]]]
 
-         (= status :disabled)
-         [:div.warning-banner
-          [:div.warning-title (tr [:settings.verification.status/warning-title])]
-          [:div.warning-subtitle (tr [:settings.verification.status/warning-subtitle])]]
+          (= status :disabled)
+          [:div.warning-banner
+           [:div.warning-title (tr [:settings.verification.status/warning-title])]
+           [:div.warning-subtitle (tr [:settings.verification.status/warning-subtitle])]]
 
-         :else
-         [:div.loading-state
-          [:span (tr [:settings.verification.status/checking])]])])))
+          :else
+          [:div.loading-state
+           [:span (tr [:settings.verification.status/checking])]])]])))
 
 
 (defn my-account-tab [profile]
@@ -461,10 +490,10 @@
   (let [tr          @(re-frame/subscribe [:i18n/tr])
         locale      @(re-frame/subscribe [:i18n/locale])]
     [:div.settings-tab-content
-     [:h2.settings-heading (tr [:settings.language/title])]
+     [:h2.settings-heading (tr [:settings.language-time/title])]
      [:div.settings-section
-      [:p.verification-description (tr [:settings.language/description])]
-      [:h3.settings-subheading (tr [:settings.language/system-label])]
+      [:p.verification-description (tr [:settings.language-time/description])]
+      [:h3.settings-subheading (tr [:settings.language-time/system-label])]
       [:div.language-list
        (for [[id label native] [[:en "English" "English"]
                                 [:lorem "Lorem Ipsum" "Lorem Ipsum"]]]

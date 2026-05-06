@@ -109,16 +109,40 @@
                                                                        (js/JSON.parse (.toJson ffi-source))
                                                                        (catch :default e
                                                                          (log/error "Failed to serialize media source:" e)
-                                                                         nil)))]
+                                                                         nil)))
+                                                        ;; Bridges (e.g. mautrix-discord) ship animated tenor clips as
+                                                        ;; mp4 with `info.fi.mau.{gif,loop,autoplay,no_audio}` flags so
+                                                        ;; clients can render the video as a gif. The typed VideoInfo
+                                                        ;; strips these custom keys, so re-parse the raw content JSON.
+                                                        ;; For edited messages the flags can live at content.info OR
+                                                        ;; content.m.new_content.info depending on how the SDK presents
+                                                        ;; the latest version, so we check both.
+                                                        raw-content (when (= m-tag "Video")
+                                                                      (try
+                                                                        (some-> event .-lazyProvider .latestContentRaw
+                                                                                js/JSON.parse
+                                                                                (js->clj))
+                                                                        (catch :default _ nil)))
+                                                        raw-info    (or (get-in raw-content ["m.new_content" "info"])
+                                                                        (get raw-content "info"))
+                                                        gif?        (and raw-info
+                                                                         (true? (get raw-info "fi.mau.gif"))
+                                                                         (true? (get raw-info "fi.mau.loop"))
+                                                                         (true? (get raw-info "fi.mau.autoplay")))
+                                                        _ (when (and (= m-tag "Video") (not gif?))
+                                                            (log/info "[gif-debug] video latestContentRaw:" raw-content
+                                                                      "→ raw-info:" raw-info "gif?:" gif?))]
                                                     {:tag         m-tag
                                                      :source      raw-mxc
                                                      :source-map  source-map
                                                      :caption     (.-caption m-content-obj)
                                                      :html        (when formatted (.-body formatted))
-                                                     :info        (if (and info (.-width info))
-                                                                    (assoc res :w (js/Number (.-width info))
-                                                                           :h (js/Number (.-height info)))
-                                                                    res)})
+                                                     :info        (cond-> (if (and info (.-width info))
+                                                                            (assoc res :w (js/Number (.-width info))
+                                                                                   :h (js/Number (.-height info)))
+                                                                            res)
+                                                                    gif? (assoc :gif?      true
+                                                                                :no-audio? (true? (get raw-info "fi.mau.no_audio"))))})
                                                   {:unsupported true})})
                                     "Sticker"
                                     (let [ffi-source (.-source kind-inner)

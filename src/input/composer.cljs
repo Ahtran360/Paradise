@@ -170,19 +170,41 @@
 (def submit-extension
   (.create Extension
            #js {:name "submitExtension"
-                :addOptions (fn [] #js {:onSend nil})
+                :priority 1000
+                :addOptions (fn [] #js {:onSend nil
+                                        :getEnterForNewLine nil
+                                        :onEditLast nil
+                                        :onCancel nil})
                 :addKeyboardShortcuts
                 (fn []
                   (this-as this
-                           #js {"Enter" (fn [context]
+                    (let [newline-mode? (fn []
+                                          (let [get-mode (.. this -options -getEnterForNewLine)]
+                                            (boolean (when get-mode (get-mode)))))
+                          send!         (fn [context]
                                           (let [editor  (.-editor context)
                                                 text    (.getText editor)
                                                 html    (.getHTML editor)
                                                 on-send (.. this -options -onSend)]
                                             (when (and on-send (on-send text html))
                                               (.commands.clearContent editor true))
-                                            true))
-                                "Shift-Enter" (fn [] false)}))}))
+                                            true))]
+                      #js {"Enter"       (fn [context]
+                                           (if (newline-mode?) false (send! context)))
+                           "Shift-Enter" (fn [context]
+                                           (if (newline-mode?) (send! context) false))
+                           "ArrowUp"     (fn [context]
+                                           (let [editor       (.-editor context)
+                                                 on-edit-last (.. this -options -onEditLast)
+                                                 text         (.getText editor)]
+                                             (if (and on-edit-last (str/blank? text))
+                                               (do (on-edit-last) true)
+                                               false)))
+                           "Escape"     (fn []
+                                           (let [on-cancel (.. this -options -onCancel)]
+                                             (if on-cancel
+                                               (do (on-cancel) true)
+                                               false)))})))}))
 
 (defn tiptap-component [^js props]
   (let [active-id    (.. props -children -activeId)
@@ -193,15 +215,34 @@
         cached-html  (.. props -children -cachedHtml)
         placeholder  (.. props -children -placeholder)
         on-ready     (.. props -children -onEditorReady)
-        latest-cbs   (react/useRef #js {:onSend on-send :onFiles on-files})
-        _            (set! (.-current latest-cbs) #js {:onSend on-send :onFiles on-files})
+        enter-for-newline (.. props -children -enterForNewLine)
+        on-edit-last      (.. props -children -onEditLast)
+        on-cancel         (.. props -children -onCancel)
+        latest-cbs        (react/useRef #js {:onSend on-send
+                                             :onFiles on-files
+                                             :enterForNewLine enter-for-newline
+                                             :onEditLast on-edit-last
+                                             :onCancel on-cancel})
+        _                 (set! (.-current latest-cbs) #js {:onSend on-send
+                                                            :onFiles on-files
+                                                            :enterForNewLine enter-for-newline
+                                                            :onEditLast on-edit-last
+                                                            :onCancel on-cancel})
         editor (useEditor
                 #js {:extensions #js [(.configure StarterKit #js {})
                                       (.configure Placeholder #js {:placeholder placeholder})
                                       (.configure submit-extension
                                       #js {:onSend (fn [text html]
                                                      (let [cb (.-onSend (.-current latest-cbs))]
-                                                       (when cb (cb text html))))})
+                                                       (when cb (cb text html))))
+                                           :getEnterForNewLine (fn []
+                                                                 (.-enterForNewLine (.-current latest-cbs)))
+                                           :onEditLast (fn []
+                                                         (let [cb (.-onEditLast (.-current latest-cbs))]
+                                                           (when cb (cb))))
+                                           :onCancel (fn []
+                                                       (let [cb (.-onCancel (.-current latest-cbs))]
+                                                         (when cb (cb))))})
                                       (.configure file-drop-extension
                                       #js {:onFiles (fn [files]
                                                       (let [cb (.-onFiles (.-current latest-cbs))]

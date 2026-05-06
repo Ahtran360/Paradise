@@ -379,6 +379,16 @@
     background-color: var(--surface-hover, rgba(255, 255, 255, 0.04));
 }
 
+.timeline-message.is-mentioned {
+    background-color: color-mix(in srgb, #f5a623 10%, transparent);
+    border-left: 2px solid #f5a623;
+    padding-left: calc(var(--chat-padding-x) / 2 - 2px);
+}
+
+.timeline-message.is-mentioned:hover {
+    background-color: color-mix(in srgb, #f5a623 15%, transparent);
+}
+
 .timeline-state-event {
     display: flex;
     justify-content: center;
