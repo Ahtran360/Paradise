@@ -218,10 +218,6 @@
   (let [tr      @(re-frame/subscribe [:i18n/tr])
         profile @(re-frame/subscribe [:sdk/profile])]
     [:div.sidebar-profile-mini
-     {:style {
-              :bottom "env(safe-area-inset-bottom, 16px)"
-              :position "absolute"
-              }}
      [:div.profile-trigger
       {:style {:user-select "none"}
        :on-click (fn [e]
