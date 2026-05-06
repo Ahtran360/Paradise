@@ -347,24 +347,40 @@ read receipts. This prevents any sort of spamming to the home server.
 ***** TODO Properly support lazy loaded media (to prevent layout shifts). Later decrypted messages are problematic here.
 
 #+begin_src clojurescript :tangle ../../../src/container/timeline/item.cljs
+(def ^:private media-max-w 600)
+(def ^:private media-max-h 400)
+(def ^:private media-min-w 10)
+(def ^:private media-min-h 10)
+
+(defn fit-media-dims
+  "Scale natural dims (w x h) into the media bounds preserving aspect ratio.
+   Caps at 600x400, floors at 10x10, never enlarges past natural size."
+  [w h]
+  (let [w     (max 1 (or w 0))
+        h     (max 1 (or h 0))
+        scale (min 1 (/ media-max-w w) (/ media-max-h h))
+        sw    (* w scale)
+        sh    (* h scale)]
+    [(max media-min-w sw) (max media-min-h sh)]))
+
 (defn async-media-wrapper [event content {:keys [class default-ratio]} render-fn]
   (r/with-let [room-id      @(re-frame/subscribe [:rooms/active-id])
                event-id     (:id event)
                info         (:info content)
                source-url   (:source content)
                source-map   (:source-map content)
-               w            (:w info)
-               h            (:h info)
-               valid-dims?  (and (number? w) (pos? w) (number? h) (pos? h))
-               style        (if valid-dims?
-                              {:aspect-ratio (str w " / " h)
-                               :max-width (str "min(" w "px, 400px)")
-                               :max-height (str "min(" h "px, 350px)")
-                               :background "var(--bg-secondary)"}
-                              {:aspect-ratio (str default-ratio)
-                               :max-width "300px"
-                               :background "var(--bg-secondary)"})
+               info-w       (:w info)
+               info-h       (:h info)
+               valid-dims?  (and (number? info-w) (pos? info-w) (number? info-h) (pos? info-h))
+               !nat-dims    (r/atom (when valid-dims? [info-w info-h]))
                !blob-url    (r/atom nil)
+               on-media-load (fn [e]
+                               (when-not @!nat-dims
+                                 (let [t  (.-target e)
+                                       nw (or (.-naturalWidth t) (.-videoWidth t))
+                                       nh (or (.-naturalHeight t) (.-videoHeight t))]
+                                   (when (and (pos? nw) (pos? nh))
+                                     (reset! !nat-dims [nw nh])))))
                _   (go
                      (let [pool @state/!media-pool
                            {:keys [token hs-url]} @net/!auth-context
@@ -386,10 +402,21 @@ read receipts. This prevents any sort of spamming to the home server.
                          "error"
                          (log/error "Media load failed:" (:msg res))
                          (log/error "Unknown status from worker:" res))))]
-    (let [url @!blob-url]
+    (let [url   @!blob-url
+          dims  @!nat-dims
+          style (if dims
+                  (let [[tw th] (fit-media-dims (first dims) (second dims))]
+                    {:width        (str tw "px")
+                     :max-width    "100%"
+                     :aspect-ratio (str tw " / " th)
+                     :background   "var(--bg-secondary)"})
+                  {:width        "300px"
+                   :max-width    "100%"
+                   :aspect-ratio (str default-ratio)
+                   :background   "var(--bg-secondary)"})]
       [:div.media-container {:class class :style style}
        (if url
-         (render-fn url (or (:caption content) (:filename content) "media"))
+         (render-fn url (or (:caption content) (:filename content) "media") on-media-load)
          [:div.message-image-placeholder
           {:style {:width "100%" :height "100%" :display "flex" :align-items "center" :justify-content "center"}}
           [:div.spinner]])])
@@ -398,7 +425,7 @@ read receipts. This prevents any sort of spamming to the home server.
         (js/URL.revokeObjectURL url)))))
 
 
-(defn calc-media-height [content actual-tag available-w theme-metrics]
+(defn calc-media-height [content actual-tag _available-w theme-metrics]
   (let [info          (or (:info content)
                           (get-in content [:inner :info])
                           (get-in content [:inner :content :info]))
@@ -406,10 +433,9 @@ read receipts. This prevents any sort of spamming to the home server.
         h             (js/parseFloat (:h info 0))
         valid-dims?   (and (pos? w) (pos? h))
         default-ratio (case actual-tag "Video" 1.77 "Sticker" 1.0 1.33)
-        calc-w        (if valid-dims? (min w available-w 400) 300)
         calc-h        (if valid-dims?
-                        (min (* calc-w (/ h w)) 350)
-                        (min (/ calc-w default-ratio) 350))
+                        (second (fit-media-dims w h))
+                        (min media-max-h (/ 300 default-ratio)))
         media-margin  (:media-margin theme-metrics 0)
         is-edited?    (or (:is-edited? content) (get-in content [:inner :content :is-edited?]))
         raw-txt       (or (:body content) (get-in content [:inner :content :body]) (:caption content) (get-in content [:inner :content :caption]))
@@ -426,10 +452,11 @@ read receipts. This prevents any sort of spamming to the home server.
 (defn image-message [event content]
   [:div.image-attachment-container
    [async-media-wrapper event content {:class "media-image" :default-ratio 1.33}
-    (fn [url alt-text]
+    (fn [url alt-text on-load]
       [:img {:src url :alt alt-text :loading "eager"
 ;;             :decoding "async"
 
+             :on-load on-load
              :on-click #(re-frame/dispatch [:ui/open-modal :image-lightbox
                                             {:url url
                                              :backdrop-props {:class "lightbox-backdrop"}
@@ -448,16 +475,20 @@ read receipts. This prevents any sort of spamming to the home server.
         gif? (:gif? info)]
     [:div.video-attachment-container
      [async-media-wrapper event content {:class "media-video" :default-ratio 1.77}
-      (fn [url _]
+      (fn [url _ on-load]
         (if gif?
-          [:video {:src           url
-                   :auto-play     true
-                   :loop          true
-                   :muted         true
-                   :plays-inline  true
-                   :controls      false
-                   :style         {:width "100%" :height "100%" :display "block"}}]
-          [:video {:src url :controls true :style {:width "100%" :height "100%" :display "block"}}]))]
+          [:video {:src                url
+                   :auto-play          true
+                   :loop               true
+                   :muted              true
+                   :plays-inline       true
+                   :controls           false
+                   :on-loaded-metadata on-load
+                   :style              {:width "100%" :height "100%" :display "block"}}]
+          [:video {:src                url
+                   :controls           true
+                   :on-loaded-metadata on-load
+                   :style              {:width "100%" :height "100%" :display "block"}}]))]
      (when (seq (:caption content))
        [:div.media-caption
         [message-text content]])]))
@@ -466,8 +497,9 @@ read receipts. This prevents any sort of spamming to the home server.
 #+begin_src clojurescript :tangle ../../../src/container/timeline/item.cljs
 (defn sticker-message [event content]
   [async-media-wrapper event content {:class "media-sticker" :default-ratio 1.0}
-   (fn [url alt]
-     [:img {:src url :alt alt :loading "eager" :style {:width "100%" :height "100%" :display "block"}} ])])
+   (fn [url alt on-load]
+     [:img {:src url :alt alt :loading "eager" :on-load on-load
+            :style {:width "100%" :height "100%" :display "block"}} ])])
 #+end_src
 
 
