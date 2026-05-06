@@ -384,9 +384,6 @@ at abstracting the excessive state management of React.
     width: 100%;
     flex: 1;
     min-height: 0;
-    position: relative;
-    display: flex;
-    flex-direction: column;
     overflow-y: auto;
 }
 
