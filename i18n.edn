@@ -163,6 +163,8 @@
               :link-previews-description  "Automatically fetch and display rich previews for URLs in chat messages."
               :link-previews-title  "Link Previews"
               :prefs-subheading "Chat Preferences"
+              :enter-new-line-title "Enter for New Line"
+              :enter-new-line-description "Press Enter to insert a new line instead of sending. Use the send button or Shift+Enter to send."
               }
    :plugins {
              :section-title "Plugins & Themes"
@@ -389,6 +391,8 @@
    {:set-status "Quas molestias"
     :copy-id "Excepturi sint"
     :logout "Occaecati"}
+   :advanced {:enter-new-line-title "Intrare ad novam"
+              :enter-new-line-description "Premere intrare pro nova linea."}
    :verification
    {:title "Cupiditate non"
     :description "Provident similique sunt in culpa qui officia deserunt mollitia animi id est laborum et dolorum."
