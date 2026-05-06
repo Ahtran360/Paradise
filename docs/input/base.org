@@ -310,7 +310,7 @@ be used.
                 :onEditorReady (fn [ed]
                                  (reset! !editor ed)
                                  (js/setTimeout #(.commands.focus ed "end") 0))
-                :onCancel #(re-frame/dispatch [:input/clear-context active-id])
+                :onCancel #(re-frame/dispatch [:input/clear-context active-id true])
                 :onSend (fn [text html]
                           (let [matrix-html (get-matrix-formatted-body @!editor)]
                             (re-frame/dispatch [:msg/edit active-id item text matrix-html])
