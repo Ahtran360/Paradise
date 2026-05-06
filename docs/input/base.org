@@ -253,10 +253,11 @@ forward.
  (fn [db _]
    (:uploading-files? db false)))
 
-(re-frame/reg-event-db
+(re-frame/reg-event-fx
  :input/set-context
- (fn [db [_ room-id mode target-item]]
-   (assoc-in db [:input-context room-id] {:mode mode :target target-item})))
+ (fn [{:keys [db]} [_ room-id mode target-item]]
+   {:db (assoc-in db [:input-context room-id] {:mode mode :target target-item})
+    :input/focus-composer (= mode :reply)}))
 
 (re-frame/reg-event-fx
  :input/clear-context
@@ -371,6 +372,7 @@ Ideally, we should break this apart more later.
             picker-open?      @(re-frame/subscribe [:ui/inline-emoji-open?])
             enter-for-newline @(re-frame/subscribe [:settings/enter-for-new-line?])
             tr                @(re-frame/subscribe [:i18n/tr])
+            last-own-msg      @(re-frame/subscribe [:timeline/last-own-editable-message active-id])
             submit-message! (fn []
                               (when-let [ed @!editor]
                                 (let [text        (.getText ed)
@@ -464,7 +466,12 @@ Ideally, we should break this apart more later.
                   :onEditorReady #(reset! !editor %)
                   :enterForNewLine (boolean enter-for-newline)
                   :onSuggestionStart (fn [cmd] (reset! !sug-command cmd))
-                  :onSuggestionExit  (fn [] (reset! !sug-command nil))}]]
+                  :onSuggestionExit  (fn [] (reset! !sug-command nil))
+                  :onEditLast (fn []
+                                (when last-own-msg
+                                  (re-frame/dispatch [:input/set-context active-id :edit last-own-msg])))
+                  :onCancel (when (= (:mode context) :reply)
+                              (fn [] (re-frame/dispatch [:input/clear-context active-id])))}]]
            [plugins/plugin-slot :composer-actions {:room-id active-id}]
            [timeline-emoji-button {:on-click #(if picker-open?
                                                 (re-frame/dispatch [:ui/close-popover])

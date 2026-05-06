@@ -237,7 +237,10 @@ Priority is set high so this fires before StarterKit's HardBreak (which also bin
   (.create Extension
            #js {:name "submitExtension"
                 :priority 1000
-                :addOptions (fn [] #js {:onSend nil :getEnterForNewLine nil})
+                :addOptions (fn [] #js {:onSend nil
+                                        :getEnterForNewLine nil
+                                        :onEditLast nil
+                                        :onCancel nil})
                 :addKeyboardShortcuts
                 (fn []
                   (this-as this
@@ -255,7 +258,19 @@ Priority is set high so this fires before StarterKit's HardBreak (which also bin
                       #js {"Enter"       (fn [context]
                                            (if (newline-mode?) false (send! context)))
                            "Shift-Enter" (fn [context]
-                                           (if (newline-mode?) (send! context) false))})))}))
+                                           (if (newline-mode?) (send! context) false))
+                           "ArrowUp"     (fn [context]
+                                           (let [editor       (.-editor context)
+                                                 on-edit-last (.. this -options -onEditLast)
+                                                 text         (.getText editor)]
+                                             (if (and on-edit-last (str/blank? text))
+                                               (do (on-edit-last) true)
+                                               false)))
+                           "Escape"     (fn []
+                                           (let [on-cancel (.. this -options -onCancel)]
+                                             (if on-cancel
+                                               (do (on-cancel) true)
+                                               false)))})))}))
 #+end_src
 
 
@@ -278,8 +293,18 @@ so we stick with what the complex component expects.
         placeholder  (.. props -children -placeholder)
         on-ready     (.. props -children -onEditorReady)
         enter-for-newline (.. props -children -enterForNewLine)
-        latest-cbs        (react/useRef #js {:onSend on-send :onFiles on-files :enterForNewLine enter-for-newline})
-        _                 (set! (.-current latest-cbs) #js {:onSend on-send :onFiles on-files :enterForNewLine enter-for-newline})
+        on-edit-last      (.. props -children -onEditLast)
+        on-cancel         (.. props -children -onCancel)
+        latest-cbs        (react/useRef #js {:onSend on-send
+                                             :onFiles on-files
+                                             :enterForNewLine enter-for-newline
+                                             :onEditLast on-edit-last
+                                             :onCancel on-cancel})
+        _                 (set! (.-current latest-cbs) #js {:onSend on-send
+                                                            :onFiles on-files
+                                                            :enterForNewLine enter-for-newline
+                                                            :onEditLast on-edit-last
+                                                            :onCancel on-cancel})
         editor (useEditor
                 #js {:extensions #js [(.configure StarterKit #js {})
                                       (.configure Placeholder #js {:placeholder placeholder})
@@ -288,7 +313,13 @@ so we stick with what the complex component expects.
                                                      (let [cb (.-onSend (.-current latest-cbs))]
                                                        (when cb (cb text html))))
                                            :getEnterForNewLine (fn []
-                                                                 (.-enterForNewLine (.-current latest-cbs)))})
+                                                                 (.-enterForNewLine (.-current latest-cbs)))
+                                           :onEditLast (fn []
+                                                         (let [cb (.-onEditLast (.-current latest-cbs))]
+                                                           (when cb (cb))))
+                                           :onCancel (fn []
+                                                       (let [cb (.-onCancel (.-current latest-cbs))]
+                                                         (when cb (cb))))})
                                       (.configure file-drop-extension
                                       #js {:onFiles (fn [files]
                                                       (let [cb (.-onFiles (.-current latest-cbs))]

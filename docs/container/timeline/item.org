@@ -1028,7 +1028,9 @@ state for now.
           :wrapper-props (merge (long-press-props open-menu-fn)
                                 {:class (str "timeline-message is-message"
                                              (when merge-with-prev? " is-merged")
-                                             (when is-mentioned? " is-mentioned"))})}
+                                             (when is-mentioned? " is-mentioned"))}
+                                (when is-own?
+                                  {:on-double-click #(re-frame/dispatch [:input/set-context active-room :edit item])}))}
 
          [timeline-avatar content-tag merge-with-prev? popover-member custom-tags active-room]
          [:div.timeline-content-wrapper
