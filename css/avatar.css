@@ -35,7 +35,7 @@
 
 
 .avatar-wrapper.squircle {
-    border-radius: 12%;
+    border-radius: 30%;
     -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M0 25C0 10 10 0 25 0h50c15 0 25 10 25 25v50c0 15-10 25-25 25H25c-15 0-25-10-25-25V25z" fill="black"/></svg>');
     mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M0 25C0 10 10 0 25 0h50c15 0 25 10 25 25v50c0 15-10 25-25 25H25c-15 0-25-10-25-25V25z" fill="black"/></svg>');
     mask-size: 100% 100%;

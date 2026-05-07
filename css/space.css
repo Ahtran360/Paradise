@@ -1,12 +1,14 @@
 .sidebar-spaces {
-    width: 72px;
+    width: 64px;
     flex-shrink: 0;
-    background-color: #1e1f22;
+    background-color: var(--spaces-bg-color);
+    border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding-top: 12px;
-    gap: 8px;
+    padding-top: 4px;
+    gap: 0;
+    overflow: hidden;
 }
 
 .sidebar-divider {
@@ -23,6 +25,20 @@
     flex: 1;
     min-height: 0;
     overflow-y: auto;
+}
+
+.spaces-list-container * {
+    scrollbar-width: none !important;
+}
+
+.spaces-list-container *::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+}
+
+.spaces-list-container [data-testid="virtuoso-scroller"] {
+    overflow-x: hidden !important;
+    scrollbar-width: none !important;
 }
 
 

@@ -460,7 +460,7 @@ html, body {
     }
 
     .sidebars-open .sidebar-rooms {
-        transform: translateX(72px);
+        transform: translateX(64px);
     }
 
     .mobile-overlay {

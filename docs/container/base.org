@@ -110,13 +110,14 @@ This is more or less where the layout and control of the container's contents wi
 }
 
 .room-layout.with-sidebar {
-  grid-template-columns: 1fr 350px;
+  grid-template-columns: 1fr var(--right-sidebar-width);
 }
 
 .sidebar {
   display: flex;
   flex-direction: column;
   height: 100%;
+  width: var(--right-sidebar-width);
   background: var(--surface-1);
   border-left: 1px solid var(--border-color);
 }
@@ -126,12 +127,14 @@ This is more or less where the layout and control of the container's contents wi
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
-  height: 48px;
+  height: var(--top-header-size);
+  background-color: var(--timeline-header-bg-color);
   border-bottom: 1px solid var(--border-color);
 }
 
 .sidebar-title {
-  font-size: 0.9rem;
+  font-size: 18px;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.05rem;
 }
@@ -146,6 +149,7 @@ This is more or less where the layout and control of the container's contents wi
 .sidebar-content {
   flex: 1;
   overflow: hidden;
+  background-color: var(--right-panel-bg-color);
 }
 
 #+end_src

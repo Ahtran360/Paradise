@@ -1,8 +1,8 @@
 .plugin-installer-panel {
-  border: 1px solid #36393f;
-  padding: 20px;
+  border: none;
+  padding: 0;
   border-radius: 8px;
-  background: #2f3136;
+  background: var(--spaces-bg-color);
 }
 
 .plugins-container-card {
@@ -10,6 +10,10 @@
   border: 1px solid var(--border-color, rgba(128, 128, 128, 0.2));
   border-radius: 8px;
   padding: 20px;
+}
+
+.plugins-container-card.split-layout {
+  background: var(--spaces-bg-color);
 }
 
 .split-layout {
@@ -58,8 +62,9 @@
 
 .plugin-input-row {
   display: flex;
+  flex-direction: column;
   gap: 8px;
-  margin-bottom: 24px;
+  margin: 0;
 }
 
 .theme-section .plugin-input-row {
@@ -68,6 +73,11 @@
 
 .plugin-input {
   flex: 1;
+}
+
+.form-input.plugin-input {
+  background: var(--timeline-bg-color);
+  border-radius: 16px;
 }
 
 .plugin-action-btn {

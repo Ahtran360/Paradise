@@ -158,6 +158,7 @@ for pins so we've moved it to reusable.
 .search-input-box {
     display: flex;
     align-items: center;
+    height: 0px;
     background: var(--surface-2);
     border-radius: 8px;
     padding: 8px;

@@ -234,8 +234,8 @@ Now for the CSS for the space icons
 }
 
 .space-icon-wrapper.active::before {
-    opacity: 1;
-    height: 40px;
+    opacity: 0.9;
+    height: 24px;
 }
 
 
@@ -262,13 +262,25 @@ Now for the CSS for the space icons
     position: relative;
     display: flex;
     justify-content: center;
-    margin-bottom: 8px;
+    margin-bottom: 0;
+    padding-top: 6px;
+    padding-bottom: 6px;
     cursor: pointer;
+}
+
+.home-group {
+    width: 64px;
+}
+
+.home-group .home-icon-container {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px !important;
 }
 
 .space-notification-pill {
     position: absolute;
-    left: 0;
+    left: -4px;
     top: 50%;
     transform: translateY(-50%);
     width: 8px;
@@ -280,16 +292,16 @@ Now for the CSS for the space icons
 
 .space-mention-badge {
     position: absolute;
-    bottom: 2px;
-    right: 2px;
+    bottom: 0;
+    right: 10px;
     background: #ff4b4b;
     color: white;
     border-radius: 10px;
-    padding: 0 6px;
-    font-size: 11px;
+    padding: 0;
+    font-size: 10px;
     font-weight: bold;
-    min-width: 18px;
-    height: 18px;
+    min-width: 20px;
+    height: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -380,14 +392,16 @@ at abstracting the excessive state management of React.
 
 #+begin_src css :tangle ../../../css/space.css
 .sidebar-spaces {
-    width: 72px;
+    width: 64px;
     flex-shrink: 0;
-    background-color: #1e1f22;
+    background-color: var(--spaces-bg-color);
+    border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding-top: 12px;
-    gap: 8px;
+    padding-top: 4px;
+    gap: 0;
+    overflow: hidden;
 }
 
 .sidebar-divider {
@@ -404,6 +418,20 @@ at abstracting the excessive state management of React.
     flex: 1;
     min-height: 0;
     overflow-y: auto;
+}
+
+.spaces-list-container * {
+    scrollbar-width: none !important;
+}
+
+.spaces-list-container *::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+}
+
+.spaces-list-container [data-testid="virtuoso-scroller"] {
+    overflow-x: hidden !important;
+    scrollbar-width: none !important;
 }
 
 

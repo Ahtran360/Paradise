@@ -354,7 +354,8 @@ the user may be typing and it'll bump the composer when it appears.
     color: var(--cp-text-muted);
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-end;
+    padding-right: 20px;
     gap: 2px;
     user-select: none;
     transition: opacity 0.2s ease-in-out;
@@ -533,6 +534,7 @@ I will segment these another time
       flex: 1;
       height: 100%;
       min-height: 0;
+      background-color: var(--timeline-bg-color);
   }
 
 

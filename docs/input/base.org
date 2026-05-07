@@ -508,6 +508,8 @@ Ideally, we should break this apart more later.
 
 .timeline-send-btn {
     color: var(--accent-color);
+    padding: 0;
+    margin-right: 12px;
 }
 
 .timeline-send-btn:hover {

@@ -1,7 +1,10 @@
 .lightbox-close-btn {
     position: absolute;
-    right: 20px;
-    top: env(safe-area-inset-top, 0px);
+    right: 24px;
+    top: 24px;
+    width: 42px;
+    height: 42px;
+    pointer-events: auto;
     background: rgba(0, 0, 0, 0.5);
     color: white;
     border-radius: 50%;
@@ -13,6 +16,11 @@
     z-index: 10;
     backdrop-filter: blur(4px);
     transition: background 0.2s;
+}
+
+.lightbox-close-btn svg {
+    width: 24px;
+    height: 24px;
 }
 
 .lightbox-close-btn:hover {
@@ -38,6 +46,7 @@
     align-items: center;
     justify-content: center;
     animation: fadeIn 0.15s ease-out;
+    pointer-events: none;
 }
 
 .lightbox-backdrop {

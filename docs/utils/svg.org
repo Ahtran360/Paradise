@@ -99,6 +99,8 @@ And then some basic 'animations' defined in CSS
 }
 
 .animate-sun-pulse {
+      width: 38px;
+      height: 38px;
       transition: transform 0.3s ease-in-out;
       transform-origin: center;
       transform-box: fill-box;

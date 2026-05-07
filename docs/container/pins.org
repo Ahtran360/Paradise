@@ -119,7 +119,7 @@ Doesn't matter how, but we need one of those to render the actual entries.
     display: flex;
     flex-direction: column;
     height: 100%;
-    padding: 16px;
+    padding: 4px !important;
 }
 
 .pins-list {

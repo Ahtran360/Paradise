@@ -1,4 +1,24 @@
 
+.quick-switcher-container {
+  background: var(--timeline-bg-color);
+  border-radius: 12px;
+  width: 480px;
+}
+
+.quick-switcher-input {
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  width: 100%;
+  padding-left: 12px;
+  padding-right: 16px;
+}
+
+.selectable-list-empty {
+  padding-left: 12px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
 .quick-switcher-item {
   border-radius: 8px;
   cursor: pointer;
@@ -6,9 +26,22 @@
 }
 
 .quick-switcher-item.is-selected {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(88, 101, 242, 0.15);
 }
 
 .selectable-item.is-selected {
   background-color: rgba(255, 255, 255, 0.1);
+}
+
+.quick-switcher-item .avatar-wrapper {
+  border-radius: 8px;
+  width: 32px !important;
+  height: 32px !important;
+}
+
+@media (max-width: 768px) {
+  .quick-switcher-container {
+    width: 90vw;
+    max-width: 480px;
+  }
 }

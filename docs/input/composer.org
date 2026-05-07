@@ -374,9 +374,10 @@ so we stick with what the complex component expects.
 }
 
 .tiptap-editor-surface {
-    padding: 10px 16px;
+    padding: 10px 16px 10px 8px;
     color: #dbdee1;
     font-size: 0.95rem;
+    line-height: 1.5;
 }
 
 .prosemirror {

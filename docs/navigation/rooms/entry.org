@@ -98,13 +98,16 @@ side-effects like too long of a name squishing the SVG (icon).
 .room-item {
     display: flex;
     align-items: center;
-    padding: 6px 12px;
+    padding: 5px 0;
+    border-left: 5px solid transparent;
+    border-radius: 8px;
     cursor: pointer;
     gap: 10px;
 }
 
 .room-item svg {
     flex-shrink: 0;
+    margin-right: 0 !important;
 }
 
 .room-item:hover .room-name {
@@ -115,18 +118,22 @@ side-effects like too long of a name squishing the SVG (icon).
 .room-item.active { background: var(--bg-selected); }
 
 .room-item:hover {
-    background-color: #35373c;
+    background-color: var(--rooms-bg-hover-color);
     color: #dbdee1;
 }
 
 .room-item.active {
     background-color: #3f4147 !important;
-    color: #ffffff;
+    color: var(--room-name-text-active-color);
+}
+
+.room-container {
+    color: var(--room-name-text-inactive-color);
 }
 
 .room-name {
-    font-weight: 600;
-    font-size: .875em;
+    font-weight: 500;
+    font-size: 16px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -205,7 +212,7 @@ actions, and such. Generally they'll only be visible when hovered.
     position: absolute;
     right: 0;
     z-index: 10;
-    display: none;
+    display: none !important;
     align-items: center;
     gap: 8px;
     height: 100%;
@@ -285,6 +292,7 @@ but regular counts should be much softer.
       padding: 2px 6px;
       border-radius: 12px;
       margin-left: auto;
+      margin-right: 8px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -326,7 +334,7 @@ call controls and some color styling.
   width: 100%;
   box-sizing: border-box;
   background: var(--surface-2);
-  border-top: 2px solid rgba(0, 0, 0, 0.2);
+  border-top: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -730,6 +738,7 @@ important.
       padding: 2px 6px;
       border-radius: 12px;
       margin-left: auto;
+      margin-right: 8px;
       display: inline-flex;
       align-items: center;
       justify-content: center;

@@ -34,11 +34,12 @@
 .filter-bar {
     display: flex;
     gap: 8px;
-    padding: 10px;
-    background-color: #2b2d31;
-    border-bottom: 1px solid #1e1f22;
+    padding: 6px 0 5px;
+    background-color: var(--rooms-bg-color);
+    border-bottom: 1px solid var(--border-color);
     overflow-x: auto;
     scrollbar-width: none;
+    justify-content: center;
 }
 
 .filter-bar::-webkit-scrollbar {
@@ -72,10 +73,12 @@
 .sidebar-rooms {
     width: 240px;
     flex-shrink: 1;
-    background-color: #2b2d31;
+    background-color: var(--rooms-bg-color);
+    border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
-    padding: 12px;
+    padding: 0;
+    margin: 0;
 }
 
 @media (max-width: 768px) {
@@ -96,6 +99,17 @@
 .room-collection {
     flex: 1;
     min-height: 0;
+    padding-top: 4px;
+}
+
+.room-collection [data-testid="virtuoso-item-list"] {
+    padding-left: 4px;
+    padding-right: 4px;
+    box-sizing: border-box;
+}
+
+[data-virtuoso-scroller="true"]::-webkit-scrollbar {
+    display: none;
 }
 
 .filter-bar::-webkit-scrollbar {
@@ -148,15 +162,26 @@
     height: 48px;
     justify-content: center;
     min-width: 0;
+    margin: 0;
+    background-color: var(--rooms-bg-color);
+    color: var(--rooms-header-text-color);
+    font-weight: 500;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.room-list-header h3 {
+    border-bottom: 1px solid var(--border-color);
 }
 
 .sidebar-rooms {
     width: 240px;
     flex-shrink: 0;
-    background-color: #2b2d31;
+    background-color: var(--rooms-bg-color);
+    border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
-    padding: 12px;
+    padding: 0;
+    margin: 0;
 }
 
 
