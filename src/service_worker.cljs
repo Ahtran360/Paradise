@@ -17,6 +17,8 @@
 (cleanupOutdatedCaches)
 (let [manifest (or js/self.__WB_MANIFEST #js [])]
   (precacheAndRoute manifest))
+(set! (.-__WB_DISABLE_DEV_LOGS js/self) true)
+
 
 (registerRoute
  (fn [opts]
