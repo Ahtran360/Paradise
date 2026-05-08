@@ -253,10 +253,11 @@ forward.
  (fn [db _]
    (:uploading-files? db false)))
 
-(re-frame/reg-event-db
+(re-frame/reg-event-fx
  :input/set-context
- (fn [db [_ room-id mode target-item]]
-   (assoc-in db [:input-context room-id] {:mode mode :target target-item})))
+ (fn [{:keys [db]} [_ room-id mode target-item]]
+   {:db (assoc-in db [:input-context room-id] {:mode mode :target target-item})
+    :input/focus-composer (= mode :reply)}))
 
 (re-frame/reg-event-db
  :input/clear-context
@@ -306,7 +307,10 @@ be used.
           [:> tiptap-component
            #js {:activeId active-id
                 :loadedText initial-text
-                :onEditorReady #(reset! !editor %)
+                :onEditorReady (fn [ed]
+                                 (reset! !editor ed)
+                                 (js/setTimeout #(.commands.focus ed "end") 0))
+                :onCancel #(re-frame/dispatch [:input/clear-context active-id true])
                 :onSend (fn [text html]
                           (let [matrix-html (get-matrix-formatted-body @!editor)]
                             (re-frame/dispatch [:msg/edit active-id item text matrix-html])
@@ -366,6 +370,7 @@ Ideally, we should break this apart more later.
             context        @(re-frame/subscribe [:input/context active-id])
             picker-open?   @(re-frame/subscribe [:ui/inline-emoji-open?])
             tr             @(re-frame/subscribe [:i18n/tr])
+            last-own-msg   @(re-frame/subscribe [:timeline/last-own-editable-message active-id])
             submit-message! (fn []
                               (when-let [ed @!editor]
                                 (let [text        (.getText ed)
@@ -458,7 +463,12 @@ Ideally, we should break this apart more later.
                   :placeholder (tr [:composer/placeholder])
                   :onEditorReady #(reset! !editor %)
                   :onSuggestionStart (fn [cmd] (reset! !sug-command cmd))
-                  :onSuggestionExit  (fn [] (reset! !sug-command nil))}]]
+                  :onSuggestionExit  (fn [] (reset! !sug-command nil))
+                  :onEditLast (fn []
+                                (when last-own-msg
+                                  (re-frame/dispatch [:input/set-context active-id :edit last-own-msg])))
+                  :onCancel (when (= (:mode context) :reply)
+                              (fn [] (re-frame/dispatch [:input/clear-context active-id])))}]]
            [plugins/plugin-slot :composer-actions {:room-id active-id}]
            [timeline-emoji-button {:on-click #(if picker-open?
                                                 (re-frame/dispatch [:ui/close-popover])
