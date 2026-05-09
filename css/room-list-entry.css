@@ -243,6 +243,12 @@
 }
 
 
+.participant-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .notification-badge {
       background-color: #4a4d53;
       color: white;
