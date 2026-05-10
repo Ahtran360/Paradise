@@ -172,7 +172,7 @@
           has-attrs? (map? (second node))
           attrs (if has-attrs? (second node) {})
           children (if has-attrs? (drop 2 node) (drop 1 node))
-          inner-text (clojure.string/join "" (map hiccup->text children))]
+          inner-text (str/join "" (map hiccup->text children))]
       (cond
         (= tag :br)
         "\n"
@@ -187,33 +187,52 @@
         inner-text))
 
     (sequential? node)
-    (clojure.string/join "" (map hiccup->text node))
+    (str/join "" (map hiccup->text node))
 
     :else
     ""))
 
+(defn process-raw-event [e source]
+  (let [html-txt     (or (get-in e [:content :inner :content :html]) "")
+        cleaned-html (if (seq html-txt)
+                       (str/replace html-txt #"(?i)<br[^>]*>\s*(?=</(?:p|div|h[1-6]|blockquote|li)>)" "")
+                       "")
+        safe-hiccup  (when (seq cleaned-html)
+                       (sanitize-custom-html cleaned-html))
+        plain-text   (if safe-hiccup
+                       (hiccup->text safe-hiccup)
+                       (or (:body e)
+                           (get-in e [:content :body])
+                           (get-in e [:content :inner :content :body])
+                           (get-in e [:content :caption])
+                           (get-in e [:content :inner :content :caption])
+                           ""))]
+    (-> e
+        (assoc :timeline-source source)
+        (assoc :clean-hiccup safe-hiccup)
+        (assoc :clean-text plain-text)
+        (update :type keyword)
+        (assoc :raw e))))
+
+
+(defonce relative-formatter
+  (js/Intl.RelativeTimeFormat. js/undefined #js {:numeric "auto"}))
+
+(defonce date-formatter
+  (js/Intl.DateTimeFormat. js/undefined #js {:month "long"
+                                             :day "numeric"
+                                             :year "numeric"}))
 
 (defn format-divider-date [ts]
   (let [date         (js/Date. ts)
         today        (js/Date.)
         is-today     (= (.toDateString date) (.toDateString today))
-
         yesterday    (doto (js/Date.) (.setDate (- (.getDate today) 1)))
         is-yesterday (= (.toDateString date) (.toDateString yesterday))]
-
     (cond
-      is-today
-      (.format (js/Intl.RelativeTimeFormat. js/undefined #js {:numeric "auto"}) 0 "day")
-
-      is-yesterday
-      (.format (js/Intl.RelativeTimeFormat. js/undefined #js {:numeric "auto"}) -1 "day")
-
-      :else
-      (.toLocaleDateString date js/undefined
-                           #js {:month "long"
-                                :day "numeric"
-                                :year "numeric"}))))
-
+      is-today     (.format relative-formatter 0 "day")
+      is-yesterday (.format relative-formatter -1 "day")
+      :else        (.format date-formatter date))))
 
 (defn format-time [ts]
   (when ts
@@ -257,7 +276,7 @@
 
 
 (defn fetch-state-event [homeserver token room-id event-type state-key]
-  (let [clean-hs (clojure.string/replace homeserver #"/+$" "")
+  (let [clean-hs (str/replace homeserver #"/+$" "")
         key-path (if (empty? state-key) "" (str "/" state-key))
         url      (str clean-hs "/_matrix/client/v3/rooms/" room-id "/state/" event-type key-path)]
     (-> (p/let [resp (net/fetch url #js {:headers #js {:Authorization (str "Bearer " token)}})]
