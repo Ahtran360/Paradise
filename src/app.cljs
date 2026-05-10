@@ -151,15 +151,6 @@
 
 
 (re-frame/reg-sub
- :i18n/tr
- (fn [db _]
-   (let [locale (:locale db)
-         dictionary (:dictionary db)]
-     (partial tempura/tr {:dict dictionary} [locale :en]))))
-
-
-
-(re-frame/reg-sub
  :i18n/locale
  (fn [db _] (:locale db)))
 
@@ -169,12 +160,12 @@
 
 (re-frame/reg-sub
  :i18n/tr
- (fn [db _]
-   (let [locale (get db :locale :en)
-         dictionary (get db :dictionary {})]
-     (if (empty? dictionary)
-       (fn [k & _] (str "[" (name (last k)) "]"))
-       (partial tempura/tr {:dict dictionary} [locale :en])))))
+ :<- [:i18n/locale]
+ :<- [:i18n/dictionary]
+ (fn [[locale dictionary] _]
+   (if (empty? dictionary)
+     (fn [k & _] (str "[" (name (last k)) "]"))
+     (partial tempura/tr {:dict dictionary} [locale :en]))))
 
 (re-frame/reg-event-db
  :i18n/set-dictionary
@@ -185,8 +176,6 @@
  :i18n/set-locale
  (fn [db [_ locale]]
    (assoc db :locale locale)))
-
-
 
 (re-frame/reg-event-fx
  :ui/hydrate-theme
