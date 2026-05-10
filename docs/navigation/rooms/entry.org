@@ -512,13 +512,15 @@ important.
 
 ***** Component
 
-#+begin_src clojurescript :tangle ../../../src/navigation/rooms/entry.cljs
 
-;; We should probably cache the DM avatars for quicker loading. We can update that
-;; saved value and the shown avatar on load. Realistically
-;; in the future the rust-sdk will give us the avatar for a DM without any hassle
-;; Also likely important to note that we only bother loading the member list
-;; for DMs because of this issue. Otherwise that piece can be removed as well.
+We should probably cache the DM avatars for quicker loading. We can update that
+saved value and the shown avatar on load. Realistically
+in the future the rust-sdk will give us the avatar for a DM without any hassle
+Also likely important to note that we only bother loading the member list
+for DMs because of this issue. Otherwise that piece can be removed as well.
+
+
+#+begin_src clojurescript :tangle ../../../src/navigation/rooms/entry.cljs
 (defn room-item [initial-props]
   (r/with-let [!attempted? (atom false)]
     (fn [{:keys [id name indent is-space? is-closed? is-dm? has-call?
