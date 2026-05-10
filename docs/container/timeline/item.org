@@ -602,6 +602,38 @@ read receipts. This prevents any sort of spamming to the home server.
             :reagent-render
             (fn []
               [link-preview-card first-url hs-url])}))))))
+
+(defn calc-link-preview-height [msg available-w url-previews theme-metrics]
+  (let [content (:content msg)
+        raw-txt (or (:body msg) (:body content) (get-in content [:inner :content :body]) "")
+        first-url (extract-first-url raw-txt)]
+    (if first-url
+      (let [preview (get url-previews first-url)
+            status  (:status preview)]
+        (cond
+          (= status :error) 0
+
+          (= status :success)
+          (let [{:keys [og:title og:description og:site_name]} (:data preview)]
+            (if (or og:title og:description)
+              (let [margin-top 8
+                    padding-y  24
+                    site-h     (if (seq og:site_name) 16 0)
+                    title-len  (count og:title)
+                    title-h    (cond (zero? title-len) 0
+                                     (> title-len 45)  38
+                                     :else             19)
+                    desc-len   (count og:description)
+                    desc-h     (cond (zero? desc-len) 0
+                                     (> desc-len 90)  54
+                                     (> desc-len 45)  36
+                                     :else            18)
+                    elements   (remove str/blank? [og:site_name og:title og:description])
+                    gaps-h     (max 0 (* (dec (count elements)) 6))]
+                (+ margin-top padding-y site-h title-h desc-h gaps-h))
+              0))
+          :else 108))
+      0)))
 #+end_src
 
 
