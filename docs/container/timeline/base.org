@@ -67,23 +67,34 @@ each of these later.
 
 (defn enrich-timeline-items [items]
   (loop [remaining items
-         processed []
-         last-msg  nil]
+         processed (transient [])
+         last-msg  nil
+         unread?   false]
     (if (empty? remaining)
-      processed
-      (let [curr         (first remaining)
-            curr-is-msg? (= (:content-tag curr) "MsgLike")
-            stable-id    (get-event-id curr)
-            can-merge?   (and curr-is-msg?
-                              last-msg
-                              (= (:sender-id curr) (:sender-id last-msg))
-                              (< (- (:ts curr) (:ts last-msg)) 300000))
-            new-item     (assoc curr
-                                :id stable-id
-                                :merge-with-prev? can-merge?)]
+      (persistent! processed)
+      (let [curr             (first remaining)
+            is-marker?       (= (:tag curr) "ReadMarker")
+            next-unread?     (or unread? is-marker?)
+            curr-is-msg?     (= (:content-tag curr) "MsgLike")
+            stable-id        (get-event-id curr)
+            can-merge?       (boolean (and curr-is-msg?
+                                           last-msg
+                                           (= (:sender-id curr) (:sender-id last-msg))
+                                           (< (- (:ts curr) (:ts last-msg)) 300000)))
+            apply-unread?    (and next-unread? (not is-marker?))
+            already-correct? (and (= (:id curr) stable-id)
+                                  (= (boolean (:merge-with-prev? curr)) can-merge?)
+                                  (= (boolean (:unread? curr)) apply-unread?))
+            new-item         (if already-correct?
+                               curr
+                               (assoc curr
+                                      :id stable-id
+                                      :merge-with-prev? can-merge?
+                                      :unread? apply-unread?))]
         (recur (rest remaining)
-               (conj processed new-item)
-               (if curr-is-msg? new-item nil))))))
+               (conj! processed new-item)
+               (if curr-is-msg? new-item nil)
+               next-unread?)))))
 
 #+end_src
 
