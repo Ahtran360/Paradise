@@ -354,10 +354,23 @@ read receipts. This prevents any sort of spamming to the home server.
 
 
 #+begin_src clojurescript :tangle ../../../src/container/timeline/item.cljs
+(def sanitize-cache (atom {}))
+
+(defn memoized-sanitize [html]
+  (if-let [hit (get @sanitize-cache html)]
+    hit
+    (let [res (sanitize-custom-html html)]
+      (swap! sanitize-cache (fn [m]
+                              (let [m' (assoc m html res)]
+                                (if (> (count m') 300)
+                                  (dissoc m' (first (keys m')))
+                                  m'))))
+      res)))
+
 (defn message-text [{:keys [body html]}]
-  (if (seq html)
-    (into [:span.body.formatted] (sanitize-custom-html html))
-    [:span.body (linkify-text body)]))
+   (if (seq html)
+    (into [:span.body.formatted] (memoized-sanitize html))
+     [:span.body (linkify-text body)]))
 #+end_src
 
 
