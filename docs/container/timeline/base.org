@@ -163,6 +163,13 @@ each of these later.
  (fn [events _]
    (into {} (map (juxt :id identity) events))))
 
+(re-frame/reg-sub
+ :timeline/event
+ (fn [[_ room-id _event-id]]
+   (re-frame/subscribe [:timeline/events-map room-id]))
+ (fn [events-map [_ _room-id event-id]]
+   (get events-map event-id)))
+
 (re-frame/reg-event-fx
  :sdk/boot-timeline
  (fn [{:keys [db]} [_ room-id]]
