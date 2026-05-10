@@ -72,6 +72,14 @@
    (zipmap (map :user-id members) members)))
 
 (re-frame/reg-sub
+ :room/member
+ (fn [[_ room-id]]
+   (re-frame/subscribe [:room/members-map room-id]))
+ (fn [members-map [_ _ user-id]]
+   (get members-map user-id)))
+
+
+(re-frame/reg-sub
  :room/filtered-and-sorted-members
  (fn [[_ room-id]]
    [(re-frame/subscribe [:room/members room-id])
