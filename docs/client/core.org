@@ -40,13 +40,8 @@ reframe event they should trigger here.
       "room-parent-resolved" (re-frame/dispatch [:rooms/apply-parent-resolution (:room-id data) (:first-parent-id data)])
       "room-preview-resolved"  (re-frame/dispatch [:rooms/set-preview (:room-id data) (:preview data)])
       "timeline-diff"
-      (let [source (keyword (:source data))
-            events (mapv (fn [e]
-                           (-> e
-                               (assoc :timeline-source source)
-                               (update :type keyword)))
-                         (:events data))]
-        (re-frame/dispatch [:sdk/update-timeline (:room-id data) source events]))
+      (let [source (keyword (:source data))]
+        (re-frame/dispatch [:sdk/update-timeline (:room-id data) source (:events data)]))
 
       "widget-message"    (re-frame/dispatch [:call/recv-widget-message (:data data)])
       "recovery-state-update"  (re-frame/dispatch [:sdk/handle-recovery-stream (keyword (:state data))])
