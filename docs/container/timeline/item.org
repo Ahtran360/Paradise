@@ -723,42 +723,48 @@ individual's display name.
 ****** TODO Need to calculate the height (because they can wrap)
 
 #+begin_src clojurescript :tangle ../../../src/container/timeline/item.cljs
-(defn reaction-row [{:keys [reactions my-id members-map active-room event-id]}]
-  [:div.reactions-row
-   (for [[emoji count senders] reactions]
-     (let [hover-text (->> senders
-                           (map (fn [uid]
-                                  (or (:display-name (get members-map uid)) uid)))
-                           (str/join ", "))]
-       ^{:key emoji}
-       [:span.reaction-pill
-        {:class (when (contains? senders my-id) "active")
-         :title hover-text
-         :on-context-menu (fn [e]
-                            (.preventDefault e)
-                            (.stopPropagation e)
-                            (re-frame/dispatch
-                             [:ui/open-modal :reaction-details
-                              {:room-id active-room
-                               :reactions reactions
-                               :window-props {:style {:max-width "400px" :min-height "300px"}}}]))
-         :on-click (fn [e]
-                     (.preventDefault e)
-                     (.stopPropagation e)
-                     (re-frame/dispatch [:sdk/toggle-reaction active-room event-id emoji]))
-         :style {:cursor "pointer" :user-select "none"}}
-        (if (str/starts-with? emoji "mxc://")
-          [mxc-image
-           {:mxc   emoji
-            :class "reaction-custom"
-            :style {:pointer-events "none"
-                    :height "1.2em"
-                    :width "auto"
-                    :vertical-align "middle"
-                    :object-fit "contain"}
-            :alt   "emote"}]
-          [:span.reaction-emoji {:style {:pointer-events "none"}} emoji])
-        [:span.reaction-count {:style {:pointer-events "none"}} count]]))])
+
+(defn reaction-pill [emoji count senders my-id active-room event-id reactions]
+  (let [members-map @(re-frame/subscribe [:room/members-map active-room])
+        hover-text (->> senders
+                        (map (fn [uid]
+                               (or (:display-name (get members-map uid)) uid)))
+                        (str/join ", "))]
+    [:span.reaction-pill
+     {:class (when (contains? senders my-id) "active")
+      :title hover-text
+      :on-context-menu (fn [e]
+                         (.preventDefault e)
+                         (.stopPropagation e)
+                         (re-frame/dispatch
+                          [:ui/open-modal :reaction-details
+                           {:room-id active-room
+                            :reactions reactions
+                            :window-props {:style {:max-width "400px" :min-height "300px"}}}]))
+      :on-click (fn [e]
+                  (.preventDefault e)
+                  (.stopPropagation e)
+                  (re-frame/dispatch [:sdk/toggle-reaction active-room event-id emoji]))
+      :style {:cursor "pointer" :user-select "none"}}
+     (if (str/starts-with? emoji "mxc://")
+       [mxc-image
+        {:mxc   emoji
+         :class "reaction-custom"
+         :style {:pointer-events "none"
+                 :height "1.2em"
+                 :width "auto"
+                 :vertical-align "middle"
+                 :object-fit "contain"}
+         :alt   "emote"}]
+       [:span.reaction-emoji {:style {:pointer-events "none"}} emoji])
+     [:span.reaction-count {:style {:pointer-events "none"}} count]]))
+
+
+(defn reaction-row [{:keys [reactions my-id active-room event-id]}]
+   [:div.reactions-row
+    (for [[emoji count senders] reactions]
+     ^{:key emoji}
+     [reaction-pill emoji count senders my-id active-room event-id reactions])])
 
 
 (defn calc-reaction-height [msg theme-metrics]
