@@ -1022,63 +1022,48 @@ state for now.
       (max avatar-h (+ body-h reply-h merged-padding reaction-h))
       )))
 
+(defn event-tile-render [item hs-url is-mobile? my-id tr]
+  (let [active-room  @(re-frame/subscribe [:rooms/active-id])
+        open-menu-fn (fn [mx my current-item]
+                       (re-frame/dispatch
+                        [:context-menu/open
+                         {:x mx :y my
+                          :items (build-message-actions tr current-item active-room my-id mx my)}]))]
+    (fn [item hs-url is-mobile? my-id tr]
+      (let [{:keys [id sender-id sender-name sender-avatar content-tag content type reactions ts is-own? merge-with-prev?]} item
+            is-editing-this? @(re-frame/subscribe [:input/is-editing-event? active-room id])
+            custom-tags      @(re-frame/subscribe [:room/power-level-tags active-room])
+            members-map      @(re-frame/subscribe [:room/members-map active-room])
+            member-data      (get members-map sender-id)
+            popover-member   {:user-id sender-id
+                              :display-name (or (:display-name member-data) sender-name)
+                              :avatar-url (or (:avatar-url member-data) (mxc->url sender-avatar {:homeserver hs-url :type :thumbnail :width 48 :height 48}))
+                              :power-level (or (:power-level member-data) 0)}]
+        (if (= type :virtual)
+          [virtual-item item]
+          (if (= content-tag "MsgLike")
+            [swipe-to-action-wrapper
+             {:can-edit? is-own?
+              :enabled? is-mobile?
+              :on-action (fn [action] (re-frame/dispatch [:input/set-context active-room action item]))
+              :wrapper-props (merge (long-press-props #(open-menu-fn %1 %2 item))
+                                    {:class (str "timeline-message is-message"
+                                                 (when merge-with-prev? " is-merged"))})}
 
-
-
-
-
-
-
-(defn event-tile-render [item]
-  (let [{:keys [id sender sender-id sender-name sender-avatar content-tag content type reactions read-by ts is-own? merge-with-prev?]} item
-        active-room      @(re-frame/subscribe [:rooms/active-id])
-        my-profile       @(re-frame/subscribe [:sdk/profile])
-        hs-url           @(re-frame/subscribe [:sdk/homeserver-url])
-        is-mobile?       @(re-frame/subscribe [:ui/mobile?])
-        my-id            (:user-id my-profile)
-        edit-context     @(re-frame/subscribe [:input/context active-room])
-        is-editing-this? (and (= (:mode edit-context) :edit)
-                              (= (-> edit-context :target :id) id))
-        custom-tags      @(re-frame/subscribe [:room/power-level-tags active-room])
-        members-map      @(re-frame/subscribe [:room/members-map active-room])
-        member-data      (get members-map sender-id)
-        popover-member   {:user-id sender-id
-                          :display-name (or (:display-name member-data) sender-name)
-                          :avatar-url (or (:avatar-url member-data) (mxc->url sender-avatar {:homeserver hs-url :type :thumbnail :width 48 :height 48}))
-                          :power-level (or (:power-level member-data) 0)}
-        open-menu-fn     (fn [mx my]
-                           (re-frame/dispatch
-                            [:context-menu/open
-                             {:x mx :y my
-                              :items (build-message-actions item active-room my-id mx my)}]))]
-
-    (if (= type :virtual)
-      [virtual-item item]
-      (if (= content-tag "MsgLike")
-        [swipe-to-action-wrapper
-         {:can-edit? is-own?
-          :enabled? is-mobile?
-          :on-action (fn [action] (re-frame/dispatch [:input/set-context active-room action item]))
-          :wrapper-props (merge (long-press-props open-menu-fn)
-                                {:class (str "timeline-message is-message"
-                                             (when merge-with-prev? " is-merged"))})}
-
-         [timeline-avatar content-tag merge-with-prev? popover-member custom-tags active-room]
-         [:div.timeline-content-wrapper
-          [message-hover-toolbar item active-room my-id]
-          (when-not merge-with-prev?
-            [timeline-header ts merge-with-prev? popover-member custom-tags active-room])
-          [timeline-body item content active-room is-editing-this?]
-          (when (seq reactions)
-            [reaction-row {:reactions reactions
-                           :my-id my-id
-                           :members-map members-map
-                           :active-room active-room
-                           :event-id (:event-or-transaction-id item)}])
-
-          ]]
-        [:<>
-         [sub-virtual-items content-tag item sender-name]]))))
+             [timeline-avatar content-tag merge-with-prev? popover-member custom-tags active-room]
+             [:div.timeline-content-wrapper
+              [message-hover-toolbar item active-room my-id tr]
+              (when-not merge-with-prev?
+                [timeline-header ts merge-with-prev? popover-member custom-tags active-room])
+              [timeline-body item content active-room is-editing-this?]
+              (when (seq reactions)
+                [reaction-row {:reactions reactions
+                               :my-id my-id
+                               :members-map members-map
+                               :active-room active-room
+                               :event-id (:event-or-transaction-id item)}])]]
+            [:<>
+             [sub-virtual-items content-tag item sender-name]]))))))
 #+end_src
 
 
