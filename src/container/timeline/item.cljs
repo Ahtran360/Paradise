@@ -161,24 +161,39 @@
      (assoc-in db [:read-receipts :pending room-id] event-id)
      db)))
 
+(re-frame/reg-event-db
+ :msg/mark-visible-batch
+ (fn [db [_ event-ids]]
+   (if-let [room-id (:active-room-id db)]
+     (reduce (fn [d id] (assoc-in d [:read-receipts :pending room-id] id)) db event-ids)
+     db)))
+
 
 (defonce visibility-observer
   (delay
     (js/IntersectionObserver.
-     (fn [entries observer]
-       (doseq [entry entries]
-         (when (.-isIntersecting entry)
-           (let [target   (.-target entry)
-                 event-id (.getAttribute target "data-event-id")]
-             (when (and event-id (str/starts-with? event-id "$"))
-               (.unobserve observer target)
-               (re-frame/dispatch [:msg/mark-visible event-id]))))))
+    (fn [entries observer]
+       (let [visible-ids (reduce
+                          (fn [acc entry]
+                            (if (.-isIntersecting entry)
+                              (let [target   (.-target entry)
+                                    event-id (.getAttribute target "data-event-id")]
+                                (if (and event-id (str/starts-with? event-id "$"))
+                                  (do
+                                    (.unobserve observer target)
+                                    (conj acc event-id))
+                                  acc))
+                              acc))
+                          []
+                          entries)]
+         (when (seq visible-ids)
+           (re-frame/dispatch [:msg/mark-visible-batch visible-ids]))))
      #js {:threshold 0.5})))
 
 
-(defn build-message-actions [item active-room current-user-id x y]
-  (let [tr               @(re-frame/subscribe [:i18n/tr])
-        msg-id   (:id item)
+
+(defn build-message-actions [tr item active-room current-user-id x y]
+  (let [msg-id   (:id item)
         e-t-id   (:event-or-transaction-id item)
         is-mine? (or (:is-own? item)
                      (= (:sender item) current-user-id))]
@@ -198,60 +213,75 @@
                {:id "edit" :label (tr [:container.timeline.item/edit-message]) :icon [icons/edit]
                 :action #(re-frame/dispatch [:input/set-context active-room :edit item])})
              {:id "thread" :label  (tr [:container.timeline.item/start-thread]) :icon [icons/thread] :action #(re-frame/dispatch [:msg/thread active-room msg-id])}
-             {:id "copy"   :label (tr [:container.timeline.item/copy-text])       :icon [icons/copy] :action #(js/navigator.clipboard.writeText (or (get-in item [:content :body]) ""))}
-             {:id "link"   :label (tr [:container.timeline.item/copy-link])       :icon [icons/link] :action #(log/info "Copy permalink for" msg-id)}
-             {:id "pin"    :label (tr [:container.timeline.item/pin])       :icon [icons/pins] :action
+             {:id "copy"   :label (tr [:container.timeline.item/copy-text])        :icon [icons/copy] :action #(js/navigator.clipboard.writeText (or (get-in item [:content :body]) ""))}
+             {:id "link"   :label (tr [:container.timeline.item/copy-link])        :icon [icons/link] :action #(log/info "Copy permalink for" msg-id)}
+             {:id "pin"    :label (tr [:container.timeline.item/pin])        :icon [icons/pins] :action
               #(re-frame/dispatch [:msg/toggle-pin active-room msg-id])}
-             {:id "source" :label (tr [:container.timeline.item/source])       :icon [icons/search] :action #(re-frame/dispatch [:msg/view-source msg-id])}]
+             {:id "source" :label (tr [:container.timeline.item/source])        :icon [icons/search] :action #(re-frame/dispatch [:msg/view-source msg-id])}]
       is-mine? (conj {:id "delete" :label (tr [:container.timeline.item/delete])  :icon [icons/trash] :class-name "danger" :action #(re-frame/dispatch [:msg/delete active-room e-t-id])}))))
 
 
-(defn message-hover-toolbar [item active-room current-user-id]
-  (let [tr               @(re-frame/subscribe [:i18n/tr])
-        msg-id   (:id item)
-        e-t-id   (:event-or-transaction-id item)]
-    [:div.message-hover-toolbar
-     [:div.toolbar-btn
-      {:title    (tr [:container.timeline.item/react])
-       :on-click (fn [e]
-                   (.preventDefault e)
-                   (.stopPropagation e)
-                   (let [mouse-x (.-clientX e)
-                         mouse-y (.-clientY e)]
-                     (re-frame/dispatch
-                      [:ui/open-popover :reaction-picker
-                       {:room-id active-room
-                        :msg-id  e-t-id
-                        :x       mouse-x
-                        :y       mouse-y
-                        :width   320
-                        :height  380}])))}
-      [icons/smiley]]
-     [:div.toolbar-btn
-      {:title (tr [:container.timeline.item/reply])
-       :on-click #(re-frame/dispatch [:input/set-context active-room :reply item])}
-      [icons/reply]]
-     (when (:is-own? item)
-       [:div.toolbar-btn
-        {:title (tr [:container.timeline.item/edit-message])
-         :on-click #(re-frame/dispatch [:input/set-context active-room :edit item])}
-        [icons/edit]])
-     [:div.toolbar-btn
-      {:title (tr [:container.timeline.item/more])
-       :on-click (fn [e]
-                   (.stopPropagation e)
-                   (let [mx (.-clientX e)
-                         my (.-clientY e)]
-                     (re-frame/dispatch
-                      [:context-menu/open
-                       {:x mx :y my
-                        :items (build-message-actions item active-room current-user-id mx my)}])))}
-      [icons/more]]]))
+(defn message-hover-toolbar [item active-room current-user-id tr]
+  (let [react-str (tr [:container.timeline.item/react])
+        reply-str (tr [:container.timeline.item/reply])
+        edit-str  (tr [:container.timeline.item/edit-message])
+        more-str  (tr [:container.timeline.item/more])]
+    (fn [item active-room current-user-id tr]
+      (let [msg-id (:id item)
+            e-t-id (:event-or-transaction-id item)]
+        [:div.message-hover-toolbar
+         [:div.toolbar-btn
+          {:title    react-str
+           :on-click (fn [e]
+                       (.preventDefault e)
+                       (.stopPropagation e)
+                       (re-frame/dispatch
+                        [:ui/open-popover :reaction-picker
+                         {:room-id active-room
+                          :msg-id  e-t-id
+                          :x       (.-clientX e)
+                          :y       (.-clientY e)
+                          :width   320
+                          :height  380}]))}
+          [icons/smiley]]
+         [:div.toolbar-btn
+          {:title reply-str
+           :on-click #(re-frame/dispatch [:input/set-context active-room :reply item])}
+          [icons/reply]]
+         (when (:is-own? item)
+           [:div.toolbar-btn
+            {:title edit-str
+             :on-click #(re-frame/dispatch [:input/set-context active-room :edit item])}
+            [icons/edit]])
+         [:div.toolbar-btn
+          {:title more-str
+           :on-click (fn [e]
+                       (.stopPropagation e)
+                       (let [mx (.-clientX e)
+                             my (.-clientY e)]
+                         (re-frame/dispatch
+                         [:context-menu/open
+                           {:x mx :y my
+                            :items (build-message-actions tr item active-room current-user-id mx my)}])))}
+          [icons/more]]]))))
+
+(def sanitize-cache (atom {}))
+
+(defn memoized-sanitize [html]
+  (if-let [hit (get @sanitize-cache html)]
+    hit
+    (let [res (sanitize-custom-html html)]
+      (swap! sanitize-cache (fn [m]
+                              (let [m' (assoc m html res)]
+                                (if (> (count m') 300)
+                                  (dissoc m' (first (keys m')))
+                                  m'))))
+      res)))
 
 (defn message-text [{:keys [body html]}]
-  (if (seq html)
-    (into [:span.body.formatted] (sanitize-custom-html html))
-    [:span.body (linkify-text body)]))
+   (if (seq html)
+    (into [:span.body.formatted] (memoized-sanitize html))
+     [:span.body (linkify-text body)]))
 
 (defn async-media-wrapper [event content {:keys [class default-ratio]} render-fn]
   (r/with-let [room-id      @(re-frame/subscribe [:rooms/active-id])
@@ -331,9 +361,8 @@
   [:div.image-attachment-container
    [async-media-wrapper event content {:class "media-image" :default-ratio 1.33}
     (fn [url alt-text]
-      [:img {:src url :alt alt-text :loading "eager"
-;;             :decoding "async"
-
+      [:img {:src url :alt alt-text :loading "lazy"
+             :decoding "async"
              :on-click #(re-frame/dispatch [:ui/open-modal :image-lightbox
                                             {:url url
                                              :backdrop-props {:class "lightbox-backdrop"}
@@ -357,7 +386,9 @@
 (defn sticker-message [event content]
   [async-media-wrapper event content {:class "media-sticker" :default-ratio 1.0}
    (fn [url alt]
-     [:img {:src url :alt alt :loading "eager" :style {:width "100%" :height "100%" :display "block"}} ])])
+     [:img {:src url :alt alt :loading "lazy"
+            :decoding "async"
+            :style {:width "100%" :height "100%" :display "block"}} ])])
 
 (defn file-message [event content tr]
   (let [hs-url @(re-frame/subscribe [:sdk/homeserver-url])
@@ -466,42 +497,80 @@
             (fn []
               [link-preview-card first-url hs-url])}))))))
 
-(defn reaction-row [{:keys [reactions my-id members-map active-room event-id]}]
-  [:div.reactions-row
-   (for [[emoji count senders] reactions]
-     (let [hover-text (->> senders
-                           (map (fn [uid]
-                                  (or (:display-name (get members-map uid)) uid)))
-                           (str/join ", "))]
-       ^{:key emoji}
-       [:span.reaction-pill
-        {:class (when (contains? senders my-id) "active")
-         :title hover-text
-         :on-context-menu (fn [e]
-                            (.preventDefault e)
-                            (.stopPropagation e)
-                            (re-frame/dispatch
-                             [:ui/open-modal :reaction-details
-                              {:room-id active-room
-                               :reactions reactions
-                               :window-props {:style {:max-width "400px" :min-height "300px"}}}]))
-         :on-click (fn [e]
-                     (.preventDefault e)
-                     (.stopPropagation e)
-                     (re-frame/dispatch [:sdk/toggle-reaction active-room event-id emoji]))
-         :style {:cursor "pointer" :user-select "none"}}
-        (if (str/starts-with? emoji "mxc://")
-          [mxc-image
-           {:mxc   emoji
-            :class "reaction-custom"
-            :style {:pointer-events "none"
-                    :height "1.2em"
-                    :width "auto"
-                    :vertical-align "middle"
-                    :object-fit "contain"}
-            :alt   "emote"}]
-          [:span.reaction-emoji {:style {:pointer-events "none"}} emoji])
-        [:span.reaction-count {:style {:pointer-events "none"}} count]]))])
+(defn calc-link-preview-height [msg available-w url-previews theme-metrics]
+  (let [content (:content msg)
+        raw-txt (or (:body msg) (:body content) (get-in content [:inner :content :body]) "")
+        first-url (extract-first-url raw-txt)]
+    (if first-url
+      (let [preview (get url-previews first-url)
+            status  (:status preview)]
+        (cond
+          (= status :error) 0
+
+          (= status :success)
+          (let [{:keys [og:title og:description og:site_name]} (:data preview)]
+            (if (or og:title og:description)
+              (let [margin-top 8
+                    padding-y  24
+                    site-h     (if (seq og:site_name) 16 0)
+                    title-len  (count og:title)
+                    title-h    (cond (zero? title-len) 0
+                                     (> title-len 45)  38
+                                     :else             19)
+                    desc-len   (count og:description)
+                    desc-h     (cond (zero? desc-len) 0
+                                     (> desc-len 90)  54
+                                     (> desc-len 45)  36
+                                     :else            18)
+                    elements   (remove str/blank? [og:site_name og:title og:description])
+                    gaps-h     (max 0 (* (dec (count elements)) 6))]
+                (+ margin-top padding-y site-h title-h desc-h gaps-h))
+              0))
+          :else 108))
+      0)))
+
+
+(defn reaction-pill [emoji count senders my-id active-room event-id reactions]
+  (let [members-map @(re-frame/subscribe [:room/members-map active-room])
+        hover-text (->> senders
+                        (map (fn [uid]
+                               (or (:display-name (get members-map uid)) uid)))
+                        (str/join ", "))]
+    [:span.reaction-pill
+     {:class (when (contains? senders my-id) "active")
+      :title hover-text
+      :on-context-menu (fn [e]
+                         (.preventDefault e)
+                         (.stopPropagation e)
+                         (re-frame/dispatch
+                          [:ui/open-modal :reaction-details
+                           {:room-id active-room
+                            :reactions reactions
+                            :window-props {:style {:max-width "400px" :min-height "300px"}}}]))
+      :on-click (fn [e]
+                  (.preventDefault e)
+                  (.stopPropagation e)
+                  (re-frame/dispatch [:sdk/toggle-reaction active-room event-id emoji]))
+      :style {:cursor "pointer" :user-select "none"}}
+     (if (str/starts-with? emoji "mxc://")
+       [mxc-image
+        {:mxc   emoji
+         :class "reaction-custom"
+         :style {:pointer-events "none"
+                 :height "1.2em"
+                 :width "auto"
+                 :vertical-align "middle"
+                 :object-fit "contain"}
+         :alt   "emote"}]
+       [:span.reaction-emoji {:style {:pointer-events "none"}} emoji])
+     [:span.reaction-count {:style {:pointer-events "none"}} count]]))
+
+
+(defn reaction-row [{:keys [reactions my-id active-room event-id]}]
+   [:div.reactions-row
+    (for [[emoji count senders] reactions]
+     ^{:key emoji}
+     [reaction-pill emoji count senders my-id active-room event-id reactions])])
 
 
 (defn calc-reaction-height [msg theme-metrics]
@@ -585,15 +654,23 @@
 
 (defn render-message-content [tr msg-type-tag content-map in-reply-to reply-msg event]
   (let [is-edited? (:is-edited? content-map)
-        raw-body   (:body content-map)]
+        raw-body   (:body content-map)
+        room-id    (:room-id event)
+        target-id  (if (string? in-reply-to) in-reply-to (:id reply-msg))]
     [:div.message-render-container
      (when in-reply-to
        [:div.timeline-reply-banner
+        {:style {:cursor "pointer"}
+         :on-click (fn [e]
+                     (.preventDefault e)
+                     (.stopPropagation e)
+                     (when (and room-id target-id)
+                       (re-frame/dispatch [:room/pretty-jump room-id target-id])))}
         [:div.reply-indicator [icons/reply]]
         [:div.reply-content
          (if reply-msg
            [:<>
-            [:span.reply-sender (:sender-name reply-msg)]
+            [:span.reply-sender (truncate-name (:sender-name reply-msg) 16)]
             [:span.reply-preview
              (get-in reply-msg [:content :inner :content :body]
                      (tr [:container.timeline.status/media-preview]))]]
@@ -611,6 +688,7 @@
        [:span.timeline-edited-label (tr [:container.timeline.status/edited])])
      [message-link-preview msg-type-tag raw-body]]))
 
+
 (defn calc-reply-height [content theme-metrics]
   (if (:in-reply-to content)
     (:reply-banner-h theme-metrics 32.4)
@@ -620,8 +698,7 @@
   (let [{:keys [tag inner in-reply-to]} content
         reply-id  (:event-id in-reply-to)
         tr               @(re-frame/subscribe [:i18n/tr])
-        events-map  @(re-frame/subscribe [:timeline/events-map active-room])
-        reply-msg (get events-map reply-id)]
+        reply-msg @(re-frame/subscribe [:timeline/event active-room reply-id])]
   [:div.timeline-body
    (cond
      is-editing-this? [inline-editor item active-room]
@@ -635,85 +712,61 @@
 
 
 (defn calc-text-height [msg available-w pretext-cache theme-metrics]
-  (let [content (:content msg)
-        content-tag (:tag content)
-        html-txt (or (get-in content [:inner :content :html]) "")
-
-        cleaned-html (if (seq html-txt)
-                       (str/replace html-txt #"(?i)<br[^>]*>\s*(?=</(?:p|div|h[1-6]|blockquote|li)>)" "")
-                       "")
-
-        raw-txt (cond
-                  (= content-tag "UnableToDecrypt") "Unable to decrypt"
-                  (= content-tag "Redacted") "Message deleted"
-                  (seq cleaned-html) (hiccup->text (sanitize-custom-html cleaned-html))
-                  :else (or (:body msg)
-                            (:body content)
-                            (get-in content [:inner :content :body])
-                            (:caption content)
-                            (get-in content [:inner :content :caption])
-                            ""))
-
-        txt-str (if (string? raw-txt)
-                  (str/replace raw-txt #"\n+$" "")
-                  (str raw-txt))
-        has-url? (boolean (re-find #"https?://[^\s]+" txt-str))
-        measure-str (if has-url?
-                      (str/replace txt-str #"https?://[^\s]+"
-                                   (fn [url-match]
-                                     (let [url (if (coll? url-match) (first url-match) url-match)]
-                                       (str/replace url #"([/=?&._:-])" "$1\u200B"))))
-                      txt-str)
-
+  (let [content    (:content msg)
         is-edited? (or (:is-edited? content) (get-in content [:inner :content :is-edited?]))
-        is-quote? (str/includes? html-txt "<blockquote")
-        has-code-block? (or (str/includes? txt-str "```")
-                            (str/includes? html-txt "<pre>"))
+        txt-str    (str (:clean-text msg))
+        cache-key  (str (:id msg) "-" available-w "-" (boolean is-edited?) "-" (hash txt-str))
+        cached     (get @pretext-cache cache-key)]
+    (if cached
+      cached
+      (let [html-txt (str (:clean-html msg))
+            has-url? (boolean (re-find #"https?://[^\s]+" txt-str))
+            measure-str (if has-url?
+                          (str/replace txt-str #"https?://[^\s]+"
+                                       (fn [url-match]
+                                         (let [url (if (coll? url-match) (first url-match) url-match)]
+                                           (str/replace url #"([/=?&._:-])" "$1\u200B"))))
+                          txt-str)
 
-        wrap-buffer (cond
-                      is-quote? (:quote-wrap-buffer theme-metrics 19)
-                      has-url?  (:url-wrap-buffer theme-metrics 40)
-                      :else     0)
+            is-quote?       (str/includes? html-txt "<blockquote")
+            has-code-block? (or (str/includes? txt-str "```")
+                                (str/includes? html-txt "<pre>"))
 
-        safe-available-w (max 0 (- available-w wrap-buffer))
+            wrap-buffer (cond
+                          is-quote? (:quote-wrap-buffer theme-metrics 19)
+                          has-url?  (:url-wrap-buffer theme-metrics 40)
+                          :else     0)
 
-        font-str (if has-code-block?
-                   (:code-font theme-metrics "13.68px 'fira code', monospace")
-                   (:font theme-metrics "15.2px Inter, sans-serif"))
+            safe-available-w (max 0 (- available-w wrap-buffer))
+            font-str         (if has-code-block?
+                               (:code-font theme-metrics "13.68px 'fira code', monospace")
+                               (:font theme-metrics "15.2px Inter, sans-serif"))
+            base-lh          (if has-code-block?
+                               (:code-line-height theme-metrics 20.52)
+                               (:line-height theme-metrics 22.8))
 
-        base-lh (if has-code-block?
-                  (:code-line-height theme-metrics 20.52)
-                  (:line-height theme-metrics 22.8))
+            code-padding     (if has-code-block? (:code-padding theme-metrics 28) 0)
 
-        code-padding (if has-code-block? (:code-padding theme-metrics 28) 0)
+            prep    (try (prepareWithSegments measure-str font-str #js {:whiteSpace "pre-wrap" :wordBreak "normal"}) (catch js/Error _ nil))
+            raw     (try (when prep (layoutWithLines prep safe-available-w base-lh)) (catch js/Error _ nil))
+            total-h (if raw (.-height raw) base-lh)
 
-        cache-key (str (:id msg) "-" safe-available-w "-" has-code-block? "-" is-quote? "-" is-edited?)
-        cached-text-h (get @pretext-cache cache-key)]
+            lines-arr   (if raw (.-lines raw) #js [])
+            len         (.-length lines-arr)
+            last-line-w (if (pos? len) (.-width (aget lines-arr (dec len))) 0)
 
-    (or cached-text-h
-        (let [prep (prepareWithSegments measure-str font-str #js {:whiteSpace "pre-wrap"
-                                                                  :wordBreak "normal"})
-              raw  (try (layoutWithLines prep safe-available-w base-lh) (catch js/Error _ nil))
-              total-h (if raw (.-height raw) base-lh)
+            edited-w   (:edited-label-w theme-metrics 40)
+            edited-tax (if (and is-edited? (> (+ last-line-w edited-w) safe-available-w)) base-lh 0)
 
-              lines-arr (if raw (.-lines raw) #js [])
-              len (.-length lines-arr)
-              last-line-w (if (pos? len) (.-width (aget lines-arr (dec len))) 0)
+            has-html?  (seq html-txt)
+            v-tax      (if has-html?
+                         (:html-vertical-tax theme-metrics 0)
+                         (:text-vertical-tax theme-metrics 0))
 
-              edited-w (:edited-label-w theme-metrics 40)
-              edited-tax (if (and is-edited? (> (+ last-line-w edited-w) safe-available-w))
-                           base-lh
-                           0)
+            final-h (+ total-h code-padding edited-tax v-tax)]
 
-              has-html? (seq html-txt)
-              v-tax (if has-html?
-                      (:html-vertical-tax theme-metrics 0)
-                      (:text-vertical-tax theme-metrics 0))
-
-              final-h (+ total-h code-padding edited-tax v-tax)]
-
-          (swap! pretext-cache assoc cache-key final-h)
-          final-h))))
+        (swap! pretext-cache assoc cache-key final-h)
+        final-h))))
 
 
 (defmethod calc-item-height :message [msg width pretext-cache theme-metrics]
@@ -747,91 +800,65 @@
       (max avatar-h (+ body-h reply-h merged-padding reaction-h))
       )))
 
+(defn event-tile-render [item hs-url is-mobile? my-id tr]
+  (let [active-room  @(re-frame/subscribe [:rooms/active-id])
+        open-menu-fn (fn [mx my current-item]
+                       (re-frame/dispatch
+                        [:context-menu/open
+                         {:x mx :y my
+                          :items (build-message-actions tr current-item active-room my-id mx my)}]))]
+    (fn [item hs-url is-mobile? my-id tr]
+      (let [{:keys [id sender-id sender-name sender-avatar content-tag content type reactions ts is-own? merge-with-prev?]} item
+            is-editing-this? @(re-frame/subscribe [:input/is-editing-event? active-room id])
+            custom-tags      @(re-frame/subscribe [:room/power-level-tags active-room])
+            members-map      @(re-frame/subscribe [:room/members-map active-room])
+            member-data      (get members-map sender-id)
+            popover-member   {:user-id sender-id
+                              :display-name (or (:display-name member-data) sender-name)
+                              :avatar-url (or (:avatar-url member-data) (mxc->url sender-avatar {:homeserver hs-url :type :thumbnail :width 48 :height 48}))
+                              :power-level (or (:power-level member-data) 0)}]
+        (if (= type :virtual)
+          [virtual-item item]
+          (if (= content-tag "MsgLike")
+            [swipe-to-action-wrapper
+             {:can-edit? is-own?
+              :enabled? is-mobile?
+              :on-action (fn [action] (re-frame/dispatch [:input/set-context active-room action item]))
+              :wrapper-props (merge (long-press-props #(open-menu-fn %1 %2 item))
+                                    {:class (str "timeline-message is-message"
+                                                 (when merge-with-prev? " is-merged"))})}
 
+             [timeline-avatar content-tag merge-with-prev? popover-member custom-tags active-room]
+             [:div.timeline-content-wrapper
+              [message-hover-toolbar item active-room my-id tr]
+              (when-not merge-with-prev?
+                [timeline-header ts merge-with-prev? popover-member custom-tags active-room])
+              [timeline-body item content active-room is-editing-this?]
+              (when (seq reactions)
+                [reaction-row {:reactions reactions
+                               :my-id my-id
+                               :members-map members-map
+                               :active-room active-room
+                               :event-id (:event-or-transaction-id item)}])]]
+            [:<>
+             [sub-virtual-items content-tag item sender-name]]))))))
 
-
-
-
-
-
-(defn event-tile-render [item]
-  (let [{:keys [id sender sender-id sender-name sender-avatar content-tag content type reactions read-by ts is-own? merge-with-prev?]} item
-        active-room      @(re-frame/subscribe [:rooms/active-id])
-        my-profile       @(re-frame/subscribe [:sdk/profile])
-        hs-url           @(re-frame/subscribe [:sdk/homeserver-url])
-        is-mobile?       @(re-frame/subscribe [:ui/mobile?])
-        my-id            (:user-id my-profile)
-        edit-context     @(re-frame/subscribe [:input/context active-room])
-        is-editing-this? (and (= (:mode edit-context) :edit)
-                              (= (-> edit-context :target :id) id))
-        custom-tags      @(re-frame/subscribe [:room/power-level-tags active-room])
-        members-map      @(re-frame/subscribe [:room/members-map active-room])
-        member-data      (get members-map sender-id)
-        popover-member   {:user-id sender-id
-                          :display-name (or (:display-name member-data) sender-name)
-                          :avatar-url (or (:avatar-url member-data) (mxc->url sender-avatar {:homeserver hs-url :type :thumbnail :width 48 :height 48}))
-                          :power-level (or (:power-level member-data) 0)}
-        open-menu-fn     (fn [mx my]
-                           (re-frame/dispatch
-                            [:context-menu/open
-                             {:x mx :y my
-                              :items (build-message-actions item active-room my-id mx my)}]))]
-
-    (if (= type :virtual)
-      [virtual-item item]
-      (if (= content-tag "MsgLike")
-        [swipe-to-action-wrapper
-         {:can-edit? is-own?
-          :enabled? is-mobile?
-          :on-action (fn [action] (re-frame/dispatch [:input/set-context active-room action item]))
-          :wrapper-props (merge (long-press-props open-menu-fn)
-                                {:class (str "timeline-message is-message"
-                                             (when merge-with-prev? " is-merged"))})}
-
-         [timeline-avatar content-tag merge-with-prev? popover-member custom-tags active-room]
-         [:div.timeline-content-wrapper
-          [message-hover-toolbar item active-room my-id]
-          (when-not merge-with-prev?
-            [timeline-header ts merge-with-prev? popover-member custom-tags active-room])
-          [timeline-body item content active-room is-editing-this?]
-          (when (seq reactions)
-            [reaction-row {:reactions reactions
-                           :my-id my-id
-                           :members-map members-map
-                           :active-room active-room
-                           :event-id (:event-or-transaction-id item)}])
-
-          ]]
-        [:<>
-         [sub-virtual-items content-tag item sender-name]]))))
-
-(defn event-tile [item]
-  (let [id (:id item)
-        is-virtual? (= (:type item) :virtual)
-        node-ref (volatile! nil)]
-    (r/create-class
-     {:display-name (str "event-tile-" id)
-      :component-did-mount
-      (fn [this]
-        (let [node @node-ref]
-          (when (and node (not is-virtual?) @visibility-observer)
-            (.observe @visibility-observer node))))
-      :component-will-unmount
-      (fn [this]
-        (let [node @node-ref]
-          (when (and node (not is-virtual?) @visibility-observer)
-            (.unobserve @visibility-observer node))))
-      :reagent-render
-      (fn [item]
-        [:div {:data-event-id id
-               :ref #(vreset! node-ref %)
-               :style {:width "100%"}}
-         [event-tile-render item]])})))
-
+(defn event-tile [item-id hs-url is-mobile? my-id tr]
+  (let [active-room @(re-frame/subscribe [:rooms/active-id])]
+    (fn [item-id hs-url is-mobile? my-id tr]
+      (let [item @(re-frame/subscribe [:timeline/event active-room item-id])]
+        [:div {:data-event-id item-id
+               :style {:width "100%"}
+               :ref (fn [node]
+                      (when @visibility-observer
+                        (if (and node (:unread? item))
+                          (.observe @visibility-observer node)
+                          (when node
+                            (.unobserve @visibility-observer node)))))}
+         [event-tile-render item hs-url is-mobile? my-id tr]]))))
 
 (defn connected-event-tile [room-id item-stub]
-  (let [full-items @(re-frame/subscribe [:timeline/events-map room-id])
-        item-data  (get full-items (:id item-stub))]
+  (let [item-data @(re-frame/subscribe [:timeline/event room-id (:id item-stub)])]
     (if item-data
       [event-tile item-data]
       [:div.timeline-item-loading])))
