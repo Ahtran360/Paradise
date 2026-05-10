@@ -1,7 +1,7 @@
 (ns container.reusable
   (:require [re-frame.core :as re-frame]
             [taoensso.timbre :as log]
-            [container.timeline.item :refer [event-tile]]
+            [container.timeline.item :refer [event-tile-render]]
             [navigation.rooms.entry :refer [build-room-actions]]
             [utils.svg :as icons]))
 
