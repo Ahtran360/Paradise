@@ -213,6 +213,28 @@ Just use Reagent.
     :else
     ""))
 
+(defn process-raw-event [e source]
+  (let [html-txt     (or (get-in e [:content :inner :content :html]) "")
+        cleaned-html (if (seq html-txt)
+                       (str/replace html-txt #"(?i)<br[^>]*>\s*(?=</(?:p|div|h[1-6]|blockquote|li)>)" "")
+                       "")
+        safe-hiccup  (when (seq cleaned-html)
+                       (sanitize-custom-html cleaned-html))
+        plain-text   (if safe-hiccup
+                       (hiccup->text safe-hiccup)
+                       (or (:body e)
+                           (get-in e [:content :body])
+                           (get-in e [:content :inner :content :body])
+                           (get-in e [:content :caption])
+                           (get-in e [:content :inner :content :caption])
+                           ""))]
+    (-> e
+        (assoc :timeline-source source)
+        (assoc :clean-hiccup safe-hiccup)
+        (assoc :clean-text plain-text)
+        (update :type keyword)
+        (assoc :raw e))))
+
 #+end_src
 
 
