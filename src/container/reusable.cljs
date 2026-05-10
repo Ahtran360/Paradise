@@ -96,9 +96,13 @@
 
 
 (defn message-preview-item [room-id event]
-  (let [tr @(re-frame/subscribe [:i18n/tr])]
+  (let [tr         @(re-frame/subscribe [:i18n/tr])
+        hs-url           @(re-frame/subscribe [:sdk/homeserver-url])
+        is-mobile?       @(re-frame/subscribe [:ui/mobile?])
+        my-profile       @(re-frame/subscribe [:sdk/profile])
+        my-id            (:user-id my-profile)]
     [:div.message-preview-card
-     [event-tile event]
+     [event-tile-render event hs-url is-mobile? my-id tr]
      [:button.jump-btn
       {:on-click #(re-frame/dispatch [:room/pretty-jump room-id (:id event)])}
       (tr [:container/jump-to-message])]]))
