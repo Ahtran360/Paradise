@@ -934,85 +934,61 @@ state for now.
 
 
 (defn calc-text-height [msg available-w pretext-cache theme-metrics]
-  (let [content (:content msg)
-        content-tag (:tag content)
-        html-txt (or (get-in content [:inner :content :html]) "")
-
-        cleaned-html (if (seq html-txt)
-                       (str/replace html-txt #"(?i)<br[^>]*>\s*(?=</(?:p|div|h[1-6]|blockquote|li)>)" "")
-                       "")
-
-        raw-txt (cond
-                  (= content-tag "UnableToDecrypt") "Unable to decrypt"
-                  (= content-tag "Redacted") "Message deleted"
-                  (seq cleaned-html) (hiccup->text (sanitize-custom-html cleaned-html))
-                  :else (or (:body msg)
-                            (:body content)
-                            (get-in content [:inner :content :body])
-                            (:caption content)
-                            (get-in content [:inner :content :caption])
-                            ""))
-
-        txt-str (if (string? raw-txt)
-                  (str/replace raw-txt #"\n+$" "")
-                  (str raw-txt))
-        has-url? (boolean (re-find #"https?://[^\s]+" txt-str))
-        measure-str (if has-url?
-                      (str/replace txt-str #"https?://[^\s]+"
-                                   (fn [url-match]
-                                     (let [url (if (coll? url-match) (first url-match) url-match)]
-                                       (str/replace url #"([/=?&._:-])" "$1\u200B"))))
-                      txt-str)
-
+  (let [content    (:content msg)
         is-edited? (or (:is-edited? content) (get-in content [:inner :content :is-edited?]))
-        is-quote? (str/includes? html-txt "<blockquote")
-        has-code-block? (or (str/includes? txt-str "```")
-                            (str/includes? html-txt "<pre>"))
+        txt-str    (str (:clean-text msg))
+        cache-key  (str (:id msg) "-" available-w "-" (boolean is-edited?) "-" (hash txt-str))
+        cached     (get @pretext-cache cache-key)]
+    (if cached
+      cached
+      (let [html-txt (str (:clean-html msg))
+            has-url? (boolean (re-find #"https?://[^\s]+" txt-str))
+            measure-str (if has-url?
+                          (str/replace txt-str #"https?://[^\s]+"
+                                       (fn [url-match]
+                                         (let [url (if (coll? url-match) (first url-match) url-match)]
+                                           (str/replace url #"([/=?&._:-])" "$1\u200B"))))
+                          txt-str)
 
-        wrap-buffer (cond
-                      is-quote? (:quote-wrap-buffer theme-metrics 19)
-                      has-url?  (:url-wrap-buffer theme-metrics 40)
-                      :else     0)
+            is-quote?       (str/includes? html-txt "<blockquote")
+            has-code-block? (or (str/includes? txt-str "```")
+                                (str/includes? html-txt "<pre>"))
 
-        safe-available-w (max 0 (- available-w wrap-buffer))
+            wrap-buffer (cond
+                          is-quote? (:quote-wrap-buffer theme-metrics 19)
+                          has-url?  (:url-wrap-buffer theme-metrics 40)
+                          :else     0)
 
-        font-str (if has-code-block?
-                   (:code-font theme-metrics "13.68px 'fira code', monospace")
-                   (:font theme-metrics "15.2px Inter, sans-serif"))
+            safe-available-w (max 0 (- available-w wrap-buffer))
+            font-str         (if has-code-block?
+                               (:code-font theme-metrics "13.68px 'fira code', monospace")
+                               (:font theme-metrics "15.2px Inter, sans-serif"))
+            base-lh          (if has-code-block?
+                               (:code-line-height theme-metrics 20.52)
+                               (:line-height theme-metrics 22.8))
 
-        base-lh (if has-code-block?
-                  (:code-line-height theme-metrics 20.52)
-                  (:line-height theme-metrics 22.8))
+            code-padding     (if has-code-block? (:code-padding theme-metrics 28) 0)
 
-        code-padding (if has-code-block? (:code-padding theme-metrics 28) 0)
+            prep    (try (prepareWithSegments measure-str font-str #js {:whiteSpace "pre-wrap" :wordBreak "normal"}) (catch js/Error _ nil))
+            raw     (try (when prep (layoutWithLines prep safe-available-w base-lh)) (catch js/Error _ nil))
+            total-h (if raw (.-height raw) base-lh)
 
-        cache-key (str (:id msg) "-" safe-available-w "-" has-code-block? "-" is-quote? "-" is-edited?)
-        cached-text-h (get @pretext-cache cache-key)]
+            lines-arr   (if raw (.-lines raw) #js [])
+            len         (.-length lines-arr)
+            last-line-w (if (pos? len) (.-width (aget lines-arr (dec len))) 0)
 
-    (or cached-text-h
-        (let [prep (prepareWithSegments measure-str font-str #js {:whiteSpace "pre-wrap"
-                                                                  :wordBreak "normal"})
-              raw  (try (layoutWithLines prep safe-available-w base-lh) (catch js/Error _ nil))
-              total-h (if raw (.-height raw) base-lh)
+            edited-w   (:edited-label-w theme-metrics 40)
+            edited-tax (if (and is-edited? (> (+ last-line-w edited-w) safe-available-w)) base-lh 0)
 
-              lines-arr (if raw (.-lines raw) #js [])
-              len (.-length lines-arr)
-              last-line-w (if (pos? len) (.-width (aget lines-arr (dec len))) 0)
+            has-html?  (seq html-txt)
+            v-tax      (if has-html?
+                         (:html-vertical-tax theme-metrics 0)
+                         (:text-vertical-tax theme-metrics 0))
 
-              edited-w (:edited-label-w theme-metrics 40)
-              edited-tax (if (and is-edited? (> (+ last-line-w edited-w) safe-available-w))
-                           base-lh
-                           0)
+            final-h (+ total-h code-padding edited-tax v-tax)]
 
-              has-html? (seq html-txt)
-              v-tax (if has-html?
-                      (:html-vertical-tax theme-metrics 0)
-                      (:text-vertical-tax theme-metrics 0))
-
-              final-h (+ total-h code-padding edited-tax v-tax)]
-
-          (swap! pretext-cache assoc cache-key final-h)
-          final-h))))
+        (swap! pretext-cache assoc cache-key final-h)
+        final-h))))
 
 
 (defmethod calc-item-height :message [msg width pretext-cache theme-metrics]
