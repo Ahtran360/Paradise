@@ -151,6 +151,13 @@
  (fn [db _]
    (:uploading-files? db false)))
 
+(re-frame/reg-sub
+ :input/is-editing-event?
+ (fn [db [_ room-id event-id]]
+   (let [ctx (get-in db [:input-context room-id])]
+     (and (= (:mode ctx) :edit)
+          (= (-> ctx :target :id) event-id)))))
+
 (re-frame/reg-event-db
  :input/set-context
  (fn [db [_ room-id mode target-item]]
