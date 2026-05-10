@@ -920,8 +920,7 @@ state for now.
   (let [{:keys [tag inner in-reply-to]} content
         reply-id  (:event-id in-reply-to)
         tr               @(re-frame/subscribe [:i18n/tr])
-        events-map  @(re-frame/subscribe [:timeline/events-map active-room])
-        reply-msg (get events-map reply-id)]
+        reply-msg @(re-frame/subscribe [:timeline/event active-room reply-id])]
   [:div.timeline-body
    (cond
      is-editing-this? [inline-editor item active-room]
