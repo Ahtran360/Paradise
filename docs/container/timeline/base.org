@@ -24,11 +24,17 @@ we've made interop with the WASM bindings.
             [client.state :as state]
             [reagent.dom.client :as rdom]
             [utils.images :refer [mxc->url]]
-            [utils.helpers :refer [sanitize-custom-html format-divider-date format-readers join-names get-status-string]]
+            [utils.helpers :refer [sanitize-custom-html format-divider-date format-readers join-names get-status-string process-raw-event]]
             [utils.global-ui :refer [avatar long-press-props swipe-to-action-wrapper]]
             [utils.svg :as icons]
-            [container.timeline.item :refer [event-tile connected-event-tile]]
-            [container.timeline.virtualizer :refer [pretext-timeline timeline-empty-state]]
+            [virtualizer.core :refer [virtualized-list]]
+            [container.timeline.item :refer [calc-item-height event-tile connected-event-tile]]
+            [virtualizer.core :refer [virtualized-list]]
+            [container.timeline.components :refer [timeline-empty-state
+                                                   timeline-jump-button
+                                                   timeline-loading-overlay
+                                                   timeline-measuring-sticks
+                                                   extract-timeline-metrics]]
             [container.reusable :refer [room-header]]
             [input.base :refer [message-input]]))
 #+end_src
