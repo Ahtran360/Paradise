@@ -193,7 +193,7 @@ Just use Reagent.
           has-attrs? (map? (second node))
           attrs (if has-attrs? (second node) {})
           children (if has-attrs? (drop 2 node) (drop 1 node))
-          inner-text (clojure.string/join "" (map hiccup->text children))]
+          inner-text (str/join "" (map hiccup->text children))]
       (cond
         (= tag :br)
         "\n"
@@ -208,7 +208,7 @@ Just use Reagent.
         inner-text))
 
     (sequential? node)
-    (clojure.string/join "" (map hiccup->text node))
+    (str/join "" (map hiccup->text node))
 
     :else
     ""))
