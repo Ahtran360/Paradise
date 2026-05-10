@@ -9,11 +9,17 @@
             [client.state :as state]
             [reagent.dom.client :as rdom]
             [utils.images :refer [mxc->url]]
-            [utils.helpers :refer [sanitize-custom-html format-divider-date format-readers join-names get-status-string]]
+            [utils.helpers :refer [sanitize-custom-html format-divider-date format-readers join-names get-status-string process-raw-event]]
             [utils.global-ui :refer [avatar long-press-props swipe-to-action-wrapper]]
             [utils.svg :as icons]
-            [container.timeline.item :refer [event-tile connected-event-tile]]
-            [container.timeline.virtualizer :refer [pretext-timeline timeline-empty-state]]
+            [virtualizer.core :refer [virtualized-list]]
+            [container.timeline.item :refer [calc-item-height event-tile connected-event-tile]]
+            [virtualizer.core :refer [virtualized-list]]
+            [container.timeline.components :refer [timeline-empty-state
+                                                   timeline-jump-button
+                                                   timeline-loading-overlay
+                                                   timeline-measuring-sticks
+                                                   extract-timeline-metrics]]
             [container.reusable :refer [room-header]]
             [input.base :refer [message-input]]))
 
@@ -36,23 +42,34 @@
 
 (defn enrich-timeline-items [items]
   (loop [remaining items
-         processed []
-         last-msg  nil]
+         processed (transient [])
+         last-msg  nil
+         unread?   false]
     (if (empty? remaining)
-      processed
-      (let [curr         (first remaining)
-            curr-is-msg? (= (:content-tag curr) "MsgLike")
-            stable-id    (get-event-id curr)
-            can-merge?   (and curr-is-msg?
-                              last-msg
-                              (= (:sender-id curr) (:sender-id last-msg))
-                              (< (- (:ts curr) (:ts last-msg)) 300000))
-            new-item     (assoc curr
-                                :id stable-id
-                                :merge-with-prev? can-merge?)]
+      (persistent! processed)
+      (let [curr             (first remaining)
+            is-marker?       (= (:tag curr) "ReadMarker")
+            next-unread?     (or unread? is-marker?)
+            curr-is-msg?     (= (:content-tag curr) "MsgLike")
+            stable-id        (get-event-id curr)
+            can-merge?       (boolean (and curr-is-msg?
+                                           last-msg
+                                           (= (:sender-id curr) (:sender-id last-msg))
+                                           (< (- (:ts curr) (:ts last-msg)) 300000)))
+            apply-unread?    (and next-unread? (not is-marker?))
+            already-correct? (and (= (:id curr) stable-id)
+                                  (= (boolean (:merge-with-prev? curr)) can-merge?)
+                                  (= (boolean (:unread? curr)) apply-unread?))
+            new-item         (if already-correct?
+                               curr
+                               (assoc curr
+                                      :id stable-id
+                                      :merge-with-prev? can-merge?
+                                      :unread? apply-unread?))]
         (recur (rest remaining)
-               (conj processed new-item)
-               (if curr-is-msg? new-item nil))))))
+               (conj! processed new-item)
+               (if curr-is-msg? new-item nil)
+               next-unread?)))))
 
 
 (re-frame/reg-sub
@@ -72,7 +89,24 @@
  :sdk/update-timeline
  (fn [db [_ room-id source new-raw-events]]
    (if (get-in db [:timeline-subs room-id source])
-     (assoc-in db [:timeline-data room-id source] new-raw-events)
+     (let [path             [:timeline-data room-id source]
+           existing-events  (get-in db path [])
+           extract-id       (fn [e]
+                              (let [e-kw (if (map? e) (update e :type keyword) e)]
+                                (or (get-event-id e-kw)
+                                    (:event_id e)
+                                    (:event-id e)
+                                    (:internal-id e))))
+           existing-map     (into {} (map (juxt extract-id identity) existing-events))
+           processed-events (mapv
+                             (fn [e]
+                               (let [event-id     (extract-id e)
+                                     cached-event (get existing-map event-id)]
+                                 (if (and cached-event (= (:raw cached-event) e))
+                                   cached-event
+                                   (process-raw-event e source))))
+                             new-raw-events)]
+       (assoc-in db path processed-events))
      (do
        (log/warn "Ghost diff dropped: Timeline" source "is dead for room:" room-id)
        db))))
@@ -99,6 +133,13 @@
    (re-frame/subscribe [:timeline/current-events room-id]))
  (fn [events _]
    (into {} (map (juxt :id identity) events))))
+
+(re-frame/reg-sub
+ :timeline/event
+ (fn [[_ room-id _event-id]]
+   (re-frame/subscribe [:timeline/events-map room-id]))
+ (fn [events-map [_ _room-id event-id]]
+   (get events-map event-id)))
 
 (re-frame/reg-event-fx
  :sdk/boot-timeline
@@ -365,6 +406,59 @@
         [:span.text (get-status-string tr :reading reader-names)]]
        :else
        [:span.text {:key "empty"} "\u00A0"])]))
+
+(defn timeline-estimate-fn [msg width !prepared-cache !measured-atom theme]
+  (if (= (:id msg) "read-marker")
+    (:virtual-divider-h theme 49)
+    (calc-item-height msg width !prepared-cache theme)))
+
+(def default-metrics {:font "16px sans-serif" :line-height 22.8})
+
+(defn pretext-timeline [room-id]
+  (let [on-load-older   #(re-frame/dispatch [:sdk/back-paginate room-id])
+        on-load-newer   #(re-frame/dispatch [:sdk/forward-paginate room-id])
+        on-jump-live    #(re-frame/dispatch [:room/jump-to-live-bottom room-id])
+        render-empty    (fn [] [timeline-empty-state room-id])
+        render-loading  (fn [] [timeline-loading-overlay])
+        render-sticks   (fn [ruler-ref-fn] [timeline-measuring-sticks ruler-ref-fn])
+        render-jump     (fn [do-jump! is-focused?] [timeline-jump-button do-jump! is-focused?])]
+    (fn [room-id]
+      (let [events           @(re-frame/subscribe [:timeline/current-events room-id])
+            events-map       @(re-frame/subscribe [:timeline/events-map room-id])
+            loading?         @(re-frame/subscribe [:timeline/loading-more? room-id])
+            loading-forward? @(re-frame/subscribe [:timeline/loading-forward? room-id])
+            back-dead?       @(re-frame/subscribe [:timeline/back-dead? room-id])
+            jump-target      @(re-frame/subscribe [:timeline/jump-target-id room-id])
+            focus-mode?      @(re-frame/subscribe [:room/is-focused? room-id])
+            hs-url           @(re-frame/subscribe [:sdk/homeserver-url])
+            is-mobile?       @(re-frame/subscribe [:ui/mobile?])
+            my-profile       @(re-frame/subscribe [:sdk/profile])
+            my-id            (:user-id my-profile)
+            tr               @(re-frame/subscribe [:i18n/tr])
+            render-item      (fn [layout-node]
+                              ^{:key (:id layout-node)}
+                               [event-tile (:id layout-node) hs-url is-mobile? my-id tr])]
+        [virtualized-list
+         {:items                   events
+          :items-map               events-map
+          :loading-older?          loading?
+          :loading-newer?          loading-forward?
+          :older-dead?             back-dead?
+          :jump-target-id          jump-target
+          :focus-mode?             focus-mode?
+          :on-load-older           on-load-older
+          :on-load-newer           on-load-newer
+          :on-jump-live            on-jump-live
+          :estimate-fn             timeline-estimate-fn
+          :extract-metrics-fn      extract-timeline-metrics
+          :default-theme-metrics   default-metrics
+          :wrapper-class           "timeline-wrapper"
+          :scroll-container-class  "timeline-messages"
+          :render-item             render-item
+          :render-empty-state      render-empty
+          :render-jump-button      render-jump
+          :render-loading-overlay  render-loading
+          :render-measuring-sticks render-sticks}]))))
 
 (defn timeline [& {:keys [compact? hide-header?]}]
   (let [active-id    @(re-frame/subscribe [:rooms/active-id])
