@@ -212,6 +212,13 @@ that is currently on screen.
      (assoc-in db [:read-receipts :pending room-id] event-id)
      db)))
 
+(re-frame/reg-event-db
+ :msg/mark-visible-batch
+ (fn [db [_ event-ids]]
+   (if-let [room-id (:active-room-id db)]
+     (reduce (fn [d id] (assoc-in d [:read-receipts :pending room-id] id)) db event-ids)
+     db)))
+
 #+end_src
 
 
