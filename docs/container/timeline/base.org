@@ -118,7 +118,24 @@ each of these later.
  :sdk/update-timeline
  (fn [db [_ room-id source new-raw-events]]
    (if (get-in db [:timeline-subs room-id source])
-     (assoc-in db [:timeline-data room-id source] new-raw-events)
+     (let [path             [:timeline-data room-id source]
+           existing-events  (get-in db path [])
+           extract-id       (fn [e]
+                              (let [e-kw (if (map? e) (update e :type keyword) e)]
+                                (or (get-event-id e-kw)
+                                    (:event_id e)
+                                    (:event-id e)
+                                    (:internal-id e))))
+           existing-map     (into {} (map (juxt extract-id identity) existing-events))
+           processed-events (mapv
+                             (fn [e]
+                               (let [event-id     (extract-id e)
+                                     cached-event (get existing-map event-id)]
+                                 (if (and cached-event (= (:raw cached-event) e))
+                                   cached-event
+                                   (process-raw-event e source))))
+                             new-raw-events)]
+       (assoc-in db path processed-events))
      (do
        (log/warn "Ghost diff dropped: Timeline" source "is dead for room:" room-id)
        db))))
