@@ -555,110 +555,104 @@ for DMs because of this issue. Otherwise that piece can be removed as well.
                                               :name (or (:displayName p) (:display-name member-info) p-id)
                                               :avatar-url (or (:avatarUrl p) (:avatar-url member-info))}))
                                          call-participants)]
-[:div.room-container
-       (if is-space?
-         [:div.room-drawer-header
-          (merge {:style {:padding-left (str indent "px")}
-                  :class (when is-closed? "collapsed")
-                  :on-click #(do
-                               (.preventDefault %)
-                               (.stopPropagation %)
-                               (js/setTimeout
-                                (fn []
-                                  (re-frame/dispatch [:rooms/toggle-drawer id]))
-                                150))
-                  :on-context-menu #(open-menu-fn % (.-clientX %) (.-clientY %))}
+          [:div.room-container
+           (if is-space?
+             [:div.room-drawer-header
+              (merge {:style {:padding-left (str indent "px")}
+                      :class (when is-closed? "collapsed")
+                      :on-click #(do
+                                   (.preventDefault %)
+                                   (.stopPropagation %)
+                                   (js/setTimeout
+                                    (fn []
+                                      (re-frame/dispatch [:rooms/toggle-drawer id]))
+                                    150))
+                      :on-context-menu #(open-menu-fn % (.-clientX %) (.-clientY %))}
                  (long-press-props #(open-menu-fn nil %1 %2)))
-          [:span.drawer-arrow (if is-closed? [icons/chevron-down] [icons/chevron-down])]
-          [:span.drawer-name (str/upper-case final-name)]]
-
-         [:div.room-item
-          (merge {:style {:padding-left (str indent "px")}
-                  :class [(when active? "active")
+              [:span.drawer-arrow (if is-closed? [icons/chevron-down] [icons/chevron-down])]
+              [:span.drawer-name (str/upper-case final-name)]]
+             [:div.room-item
+              (merge {:style {:padding-left (str indent "px")}
+                      :class [(when active? "active")
                           (when unread? "has-unread")
-                          (when highlight? "has-highlight")]
-
-                  :on-pointer-up #(do
+                              (when highlight? "has-highlight")]
+                      :on-pointer-up #(do
                                     (.preventDefault %)
                                     (.stopPropagation %))
-                  :on-click #(do
-                               (.preventDefault %)
-                               (.stopPropagation %)
-                               (when-let [native-event (.-nativeEvent %)]
-                                 (.stopImmediatePropagation native-event))
-                               (re-frame/dispatch [:rooms/select id]))
-                  :on-context-menu #(open-menu-fn % (.-clientX %) (.-clientY %))}
-                 (long-press-props #(open-menu-fn nil %1 %2)))
-
-          (cond
-            is-call?
-            [icons/speaker {:has-call? has-call?}]
-            (and (= active-filter "people") (or is-dm? (not space-id)))
-            [avatar {:id id :name final-name :url final-avatar :size 24 :status :online}]
-            :else
-            [icons/hash])
-          [:span.room-name final-name]
-          [:div.room-item-right
-           [:div.room-hover-actions
-            (when is-call?
-              [:div.action-icon.chat-action
-               {:title
-                (tr [:navigation.room-list/view-chat])
-                :on-click (fn [e]
-                            (.stopPropagation e)
-                            (re-frame/dispatch [:rooms/select id {:force-lobby? true :focus-override :timeline}]))}
-               [icons/chat-bubble]])
-            [:div.action-icon.settings-action
-             {:title (tr [:navigation.room-list/room-settings])
-              :on-click (fn [e]
-                          (.stopPropagation e)
-                          (re-frame/dispatch [:rooms/open-settings id]))}
-             [icons/settings {:animate :spin}]]]
-           (when has-call?
-             [:div.call-participants.hide-on-desktop
+                      :on-click #(do
+                                   (.preventDefault %)
+                                   (.stopPropagation %)
+                                   (when-let [native-event (.-nativeEvent %)]
+                                     (.stopImmediatePropagation native-event))
+                                   (re-frame/dispatch [:rooms/select id]))
+                      :on-context-menu #(open-menu-fn % (.-clientX %) (.-clientY %))}
+                     (long-press-props #(open-menu-fn nil %1 %2)))
+              (cond
+                is-call?
+                [icons/speaker {:has-call? has-call?}]
+                (and (= active-filter "people") (or is-dm? (not space-id)))
+                [avatar {:id id :name final-name :url final-avatar :size 24 :status :online}]
+                :else
+                [icons/hash])
+              [:span.room-name final-name]
+              [:div.room-item-right
+               [:div.room-hover-actions
+                (when is-call?
+                  [:div.action-icon.chat-action
+                   {:title
+                    (tr [:navigation.room-list/view-chat])
+                    :on-click (fn [e]
+                                (.stopPropagation e)
+                                (re-frame/dispatch [:rooms/select id {:force-lobby? true :focus-override :timeline}]))}
+                   [icons/chat-bubble]])
+                [:div.action-icon.settings-action
+                 {:title (tr [:navigation.room-list/room-settings])
+                  :on-click (fn [e]
+                              (.stopPropagation e)
+                              (re-frame/dispatch [:rooms/open-settings id]))}
+                 [icons/settings {:animate :spin}]]]
+               (when has-call?
+                 [:div.call-participants.hide-on-desktop
+                  (for [p resolved-participants]
+                    ^{:key (str "mobile-call-" (:id p))}
+                    [:div.participant-avatar-ring
+                     [avatar {:id (:id p) :url (:avatar-url p) :size 20}]])])
+               (when unread?
+                 [:div.notification-badge
+                  {:class (when highlight? "highlight")}
+                  (if (> notif-count 99) "99+" notif-count)])]])
+           (when (and has-call? (not is-closed?))
+             [:div.desktop-call-list.hide-on-mobile
+              {:style {:padding-left (str (+ indent 24) "px")}}
               (for [p resolved-participants]
-                ^{:key (str "mobile-call-" (:id p))}
-                [:div.participant-avatar-ring
-                 [avatar {:id (:id p) :url (:avatar-url p) :size 20}]])])
-
-           (when unread?
-             [:div.notification-badge
-              {:class (when highlight? "highlight")}
-              (if (> notif-count 99) "99+" notif-count)])]])
-       (when (and has-call? (not is-closed?))
-         [:div.desktop-call-list.hide-on-mobile
-          {:style {:padding-left (str (+ indent 24) "px")}}
-          (for [p resolved-participants]
-            ^{:key (str "desktop-call-" (:id p))}
-            [:div.call-participant-item
-             {:on-click (fn [e]
-                          (.stopPropagation e)
-                          (re-frame/dispatch [:ui/open-user-profile (:id p)]))}
-             [avatar {:id (:id p) :name (:name p) :url (:avatar-url p) :size 20}]
-             [:span.participant-name (:name p)]])])]
-[:div.room-container
-       (if is-space?
-         [:div.room-drawer-header
-          (merge {:style {:padding-left (str indent "px")}
-                  :class (when is-closed? "collapsed")
-                  :on-click #(do
-                               (.preventDefault %)
-                               (.stopPropagation %)
-                               (js/setTimeout
-                                (fn []
-                                  (re-frame/dispatch [:rooms/toggle-drawer id]))
-                                150))
-                  :on-context-menu #(open-menu-fn % (.-clientX %) (.-clientY %))}
-                 (long-press-props #(open-menu-fn nil %1 %2)))
-          [:span.drawer-arrow (if is-closed? [icons/chevron-down] [icons/chevron-down])]
-          [:span.drawer-name (str/upper-case final-name)]]
-
-         [:div.room-item
+                ^{:key (str "desktop-call-" (:id p))}
+                [:div.call-participant-item
+                 {:on-click (fn [e]
+                              (.stopPropagation e)
+                              (re-frame/dispatch [:ui/open-user-profile (:id p)]))}
+                 [avatar {:id (:id p) :name (:name p) :url (:avatar-url p) :size 20}]
+                 [:span.participant-name (:name p)]])])]
+          [:div.room-container
+           (if is-space?
+             [:div.room-drawer-header
+              (merge {:style {:padding-left (str indent "px")}
+                      :class (when is-closed? "collapsed")
+                      :on-click #(do
+                                   (.preventDefault %)
+                                   (.stopPropagation %)
+                                   (js/setTimeout
+                                    (fn []
+                                      (re-frame/dispatch [:rooms/toggle-drawer id]))
+                                    150))
+                      :on-context-menu #(open-menu-fn % (.-clientX %) (.-clientY %))}
+                     (long-press-props #(open-menu-fn nil %1 %2)))
+              [:span.drawer-arrow (if is-closed? [icons/chevron-down] [icons/chevron-down])]
+              [:span.drawer-name (str/upper-case final-name)]]
+             [:div.room-item
           (merge {:style {:padding-left (str indent "px")}
                   :class [(when active? "active")
                           (when unread? "has-unread")
                           (when highlight? "has-highlight")]
-
                   :on-pointer-up #(do
                                     (.preventDefault %)
                                     (.stopPropagation %))
