@@ -449,7 +449,7 @@ entire room list to reload. Hopefully not.
 ***** Component
 
 #+begin_src clojurescript :tangle ../../../src/navigation/rooms/room_list.cljs
-(defn filter-toggle-bar []
+(defui filter-toggle-bar []
   (let [tr            @(re-frame/subscribe [:i18n/tr])
         active-filter @(re-frame/subscribe [:room-list/active-filter])]
     [:div.filter-bar
@@ -540,7 +540,7 @@ Now, we can also add nifty behavior for the content itself by then
 checking for the "kind" of room. For now though, this is plenty sufficient.
 
 #+begin_src clojurescript :tangle ../../../src/navigation/rooms/room_list.cljs
-(defn virtualized-room-list [tr client room-array active-space active-room closed-drawers active-filter]
+(defui virtualized-room-list [tr client room-array active-space active-room closed-drawers active-filter]
   (let [item-renderer (render-room-item tr client room-array active-space active-room closed-drawers active-filter)]
     [:> Virtuoso
      {:style {:height "100%" :width "100%"}
@@ -606,7 +606,7 @@ We want to make sure the component updates if our rooms change, our active space
 or our active room changes. We then add some decorating Hiccup around it to round out the
 component.
 #+begin_src clojurescript :tangle ../../../src/navigation/rooms/room_list.cljs
-(defn room-list []
+(defui room-list []
   (let [tr              @(re-frame/subscribe [:i18n/tr])
         rooms           @(re-frame/subscribe [:rooms/current-view])
         active-room     @(re-frame/subscribe [:rooms/active-id])
