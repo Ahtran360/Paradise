@@ -342,7 +342,7 @@ Making sure this is dynamic, but abstract is important for now.
 @import "pins.css";
 @import "plugin.css";
 @import "switcher.css";
-
+@import "invites.css";
 
 html, body {
     margin: 0;
