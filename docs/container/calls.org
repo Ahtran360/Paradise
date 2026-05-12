@@ -307,6 +307,7 @@ this is not a smooth experience for the user.
   (:require [reagent.core :as r]
             [re-frame.core :as rf]
             [goog.functions :as gf]
+            [utils.macros :refer [defui]]
             [container.reusable :refer [room-header]]
             [container.call.call-container :refer [host-rect]]))
 
