@@ -160,7 +160,20 @@ is effectively a functioning *stub*.
  (fn [db [_ room-id]]
    (get-in db [:room-previews room-id])))
 
+(re-frame/reg-event-db
+ :rooms/toggle-join-mode
+       (fn [db _]
+        (update db :room-list/join-mode? not)))
 
+(re-frame/reg-sub
+ :rooms/join-mode?
+       (fn [db _]
+        (get db :room-list/join-mode? false)))
+
+(re-frame/reg-sub
+ :rooms/previews-map
+       (fn [db _]
+        (get db :room-previews {})))
 
 #+end_src
 
