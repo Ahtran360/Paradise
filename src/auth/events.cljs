@@ -4,6 +4,7 @@
             [client.state :as state]
             [cljs-workers.core :as main]
             [cljs.core.async :refer [go <!]]
+            [utils.macros :refer [defui]]
             [client.session-store :as store]
             [utils.svg :as icons]
             [utils.net :refer [set-auth-context!]]
@@ -183,7 +184,7 @@
                   (log/info "All databases destroyed. Reloading...")
                   (.reload js/window.location)))))))
 
-(defn login-field [{:keys [id label type value on-change disabled]}]
+(defui login-field [{:keys [id label type value on-change disabled]}]
   [:div.field-group.mb-4
    [:label.field-label {:for id} label]
    [:input.field-input
@@ -193,7 +194,7 @@
      :on-change on-change
      :disabled disabled}]])
 
-(defn login-screen []
+(defui login-screen []
   (let [fields (r/atom {:hs (or js/process.env.MATRIX_HOMESERVER "https://matrix.org")
                         :user ""
                         :pass ""})]
