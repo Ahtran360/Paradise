@@ -136,6 +136,7 @@ them collected together
             :z-index 9998}
            [:div.universal-context-menu
             {:class (when is-mobile? "mobile-sheet")
+             :on-context-menu (fn [e] (.preventDefault e))
              :on-pointer-down (when is-mobile? handle-ptr-down)
              :on-pointer-move (when is-mobile? handle-ptr-move)
              :on-pointer-up   (when is-mobile? handle-ptr-up)
