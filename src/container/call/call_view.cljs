@@ -2,10 +2,11 @@
   (:require [reagent.core :as r]
             [re-frame.core :as rf]
             [goog.functions :as gf]
+            [utils.macros :refer [defui]]
             [container.reusable :refer [room-header]]
             [container.call.call-container :refer [host-rect]]))
 
-(defn call-view [room-id]
+(defui call-view [room-id]
   (let [host-ref    (r/atom nil)
         observer    (r/atom nil)
         room-meta @(rf/subscribe [:rooms/active-metadata])
@@ -37,7 +38,7 @@
           (.disconnect ro))
         (.removeEventListener js/window "scroll" sync-pos! true)
         (reset! host-rect nil))
-:reagent-render
+      :reagent-render
       (fn [room-id]
         [:div.call-view-host
          {:style {:width "100%"
