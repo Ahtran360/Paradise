@@ -30,7 +30,7 @@
 @import "pins.css";
 @import "plugin.css";
 @import "switcher.css";
-
+@import "invites.css";
 
 html, body {
     margin: 0;
