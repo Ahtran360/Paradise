@@ -53,6 +53,30 @@ the CSS.
 #+end_src
 
 
+**** Composite icons
+
+Occasionally we want some more dynamic icons, particularly when we want
+to indicate the variety of state involving rooms. So we need a base for
+these complex icons.
+#+begin_src clojurescript :tangle ../../src/utils/svg.cljs
+(defn composite-icon [{:keys [main top-left top-right bottom-left bottom-right] :as props}]
+  (let [badge (fn [x y b]
+                (when b
+                  (let [shape (if (map? b) (:shape b) b)
+                        attrs (if (map? b) (dissoc b :shape) {})]
+                    [:svg (merge {:x x :y y :width "10" :height "10" :viewBox "0 0 24 24"} attrs)
+                     shape])))]
+    (build-icon-hiccup
+     (dissoc props :main :top-left :top-right :bottom-left :bottom-right)
+     [:<>
+      [:svg {:x "4" :y "2" :width "16" :height "16" :viewBox "0 0 24 24"}
+       main]
+
+      (badge "0" "0" top-left)
+      (badge "14" "0" top-right)
+      (badge "0" "14" bottom-left)
+      (badge "14" "14" bottom-right)])))
+#+end_src
 
 **** Logo Icons!
 
