@@ -163,7 +163,7 @@ For now this is just exploratory.
 ***** Preparing Attachments
 
 #+begin_src clojurescript :tangle ../../src/input/drafts.cljs
-(defn prepare-attachment [sdk att]
+(defui prepare-attachment [sdk att]
   (let [mime       (or (:mime att) (:mimetype att) "application/octet-stream")
         safe-bytes (if (= (type (:buffer att)) js/Uint8Array)
                      (:buffer att)
@@ -196,7 +196,7 @@ For now this is just exploratory.
 ***** Component
 
 #+begin_src clojurescript :tangle ../../src/input/drafts.cljs
-(defn attachment-preview [room-id attachment index]
+(defui attachment-preview [room-id attachment index]
   [:div.attachment-preview
    (let [{:keys [mimetype mime preview-url filename]} attachment
          resolved-mime (or mime mimetype "application/octet-stream")
@@ -420,7 +420,7 @@ continue sending as a file though until I reify everything properly.
 
 
 #+begin_src clojurescript :tangle ../../src/input/drafts.cljs
-(defn send-attachments! [sdk timeline room attachments text html]
+(defui send-attachments! [sdk timeline room attachments text html]
   (let [total (count attachments)]
     (p/let [_ (p/loop [idx 0]
                 (when (< idx total)
