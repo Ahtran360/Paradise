@@ -230,11 +230,12 @@ above.
  :<- [:space-children/map]
  :<- [:rooms/space-orders]
  :<- [:rooms/closed-drawers]
- (fn [[active-id ordered-list indexed-map children-map space-orders closed-drawers] _]
-   (if-not active-id
-     ordered-list
-     (flatten-tree indexed-map children-map space-orders closed-drawers active-id 0))))
-
+ :<- [:rooms/previews-map]
+ :<- [:rooms/join-mode?]
+ (fn [[active-id ordered-list indexed-map children-map space-orders closed-drawers previews-map join-mode?] _]
+  (if-not active-id
+   ordered-list
+   (flatten-tree indexed-map children-map space-orders closed-drawers previews-map join-mode? active-id 0))))
 
 
 #+end_src
@@ -310,22 +311,22 @@ Otherwise we would just re-use (and probably should see if we can)
 the method we have for all other rooms.
 #+begin_src clojurescript :tangle ../../../src/navigation/rooms/room_list.cljs
 (re-frame/reg-sub
- :space/unread-stats
- :<- [:rooms/unfiltered-indexed-map]
- :<- [:space-children/map]
- :<- [:rooms/space-orders]
- (fn [[rooms-map children-map space-orders] [_ space-id]]
-   (let [rooms-in-space (flatten-tree rooms-map children-map space-orders #{} space-id 0)
-         stats (reduce (fn [acc room]
-                         (-> acc
-                             (update :notifs + (get room :unreadNotificationsCount 0))
-                             (update :mentions + (get room :unreadMentionsCount 0))))
-                       {:notifs 0 :mentions 0} rooms-in-space)]
-     {:unread? (pos? (:notifs stats))
-      :notif-count (:notifs stats)
-      :mentions (:mentions stats)
-      :highlight? (pos? (:mentions stats))})))
+                                   :space/unread-stats
+                                   :<- [:rooms/unfiltered-indexed-map]
+                                   :<- [:space-children/map]
+                                   :<- [:rooms/space-orders]
+                                   (fn [[rooms-map children-map space-orders] [_ space-id]]
+                                    (let [rooms-in-space (flatten-tree rooms-map children-map space-orders #{} {} false space-id 0)
 
+                                          stats (reduce (fn [acc room]
+                                                         (-> acc
+                                                          (update :notifs + (get room :unreadNotificationsCount 0))
+                                                          (update :mentions + (get room :unreadMentionsCount 0))))
+    {:notifs 0 :mentions 0} rooms-in-space)]
+                                        {:unread? (pos? (:notifs stats))
+                                         :notif-count (:notifs stats)
+                                         :mentions (:mentions stats)
+                                         :highlight? (pos? (:mentions stats))})))
 
 (re-frame/reg-sub
  :rooms/active-dm-pops
@@ -381,14 +382,21 @@ and file structures.
  :rooms/select
  (fn [{:keys [db]} [_ room-id opts]]
    (let [current-room-id (:active-room-id db)
-         current-user    (:active-user-id db)]
+         current-user    (:active-user-id db)
+         membership      (get-in db [:rooms/membership room-id])
+         in-cache?       (contains? (:rooms-unfiltered-cache db) room-id)
+         needs-join?     (or (not in-cache?) (= membership "invite"))]
      (store/set-setting! (str "last_room_" current-user) room-id)
-
      (if (= current-room-id room-id)
        {:db (assoc-in db [:ui :sidebar-open?] false)}
-       {:db         (assoc db :active-room-id nil)
-        :dispatch-n [(when current-room-id [:sdk/cleanup-timeline current-room-id])]
-        :dispatch-later [{:ms 20 :dispatch [:rooms/finish-select room-id opts]}]}))))
+       (let [base-db (assoc db :active-room-id nil)
+             cleanup (when current-room-id [:sdk/cleanup-timeline current-room-id])]
+         (if needs-join?
+           {:db         base-db
+            :dispatch-n (remove nil? [cleanup [:rooms/join room-id opts]])}
+           {:db             base-db
+            :dispatch-n     (remove nil? [cleanup])
+            :dispatch-later [{:ms 20 :dispatch [:rooms/finish-select room-id opts]}]}))))))
 
 
 (re-frame/reg-event-fx
@@ -425,6 +433,7 @@ and file structures.
      {:db                 base-db
       :input/focus-composer (not mobile?)
       :dispatch-n         dispatches})))
+
 
 #+end_src
 
