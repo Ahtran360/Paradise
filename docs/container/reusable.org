@@ -52,7 +52,7 @@ so we'll keep them nicely collected here.
 ***** Room Header Component
 
 #+begin_src clojurescript :tangle ../../src/container/reusable.cljs
-(defn room-header [{:keys [display-name compact? active-id]}]
+(defui room-header [{:keys [display-name compact? active-id]}]
   (let [tr            @(re-frame/subscribe [:i18n/tr])
         main-focus    @(re-frame/subscribe [:container/main-focus])
         side-panel    @(re-frame/subscribe [:container/side-panel])
