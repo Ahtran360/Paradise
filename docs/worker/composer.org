@@ -76,7 +76,6 @@
           {:status :error :msg "Timeline not found in worker"})
         (catch :default e
           {:status :error :msg (str e)})))))
-
 (worker/register :send-attachments
   (fn [{:keys [room-id attachments text html]}]
     (go
@@ -89,8 +88,12 @@
                       mime     (or (:mime att) "application/octet-stream")
                       is-last? (= idx (dec total))
                       source   (.new (.-Data UploadSource) #js {:bytes (:buffer att) :filename (:filename att)})
+                      raw-size (:size att)
+                      safe-size (if (and raw-size (not (undefined? raw-size)))
+                                  (js/BigInt (js/Math.round raw-size))
+                                  js/undefined)
                       info     #js {:mimetype mime
-                                    :size (js/BigInt (:size att))
+                                    :size safe-size
                                     :thumbnailInfo js/undefined
                                     :thumbnailSource js/undefined}
                       caption  (if is-last? (or text js/undefined) (:filename att))
