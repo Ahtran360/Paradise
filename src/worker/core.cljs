@@ -15,7 +15,7 @@
    [worker.timeline]
    [worker.members]
    [worker.composer]
-   [worker.previews :as previews]
+   [worker.media-previews :as previews]
    [worker.call]
    [worker.rooms :as rooms]
    [worker-sci-runner :as sci]
