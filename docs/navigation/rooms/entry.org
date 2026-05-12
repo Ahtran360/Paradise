@@ -733,7 +733,7 @@ for DMs because of this issue. Otherwise that piece can be removed as well.
 
 
 #+begin_src clojurescript :tangle ../../../src/navigation/rooms/entry.cljs
-(defn room-item [initial-props]
+(defui room-item [initial-props]
   (r/with-let [!attempted? (atom false)]
     (fn [{:keys [id name indent is-space? is-closed? is-dm? has-call?
                  active-room unread? highlight? notif-count
