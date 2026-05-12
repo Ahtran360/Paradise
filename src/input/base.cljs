@@ -44,7 +44,7 @@
 
 
 
-(defui extract-metadata [raw-file]
+(defn extract-metadata [raw-file]
   (p/create
    (fn [resolve _]
      (let [mime      (.-type raw-file)
