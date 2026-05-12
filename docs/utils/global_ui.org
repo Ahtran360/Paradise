@@ -76,7 +76,7 @@ them collected together
 ***** Function
 
 #+begin_src clojurescript :tangle ../../src/utils/global_ui.cljs
-(defn global-context-menu []
+(defui global-context-menu []
   (r/with-let [!drag-y (r/atom 0)
                !start-y (r/atom 0)
                !safe-to-click? (r/atom false)
