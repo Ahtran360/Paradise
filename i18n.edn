@@ -108,6 +108,11 @@
     :mode-sticker "Sticker"}
    :suggestions
    {:no-results "No matches found"}}
+  :invites {
+     :loading "Loading..."
+     :empty "No users found."
+     :placeholder "Search or enter Matrix ID..."
+   }
   :navigation
   {:actions
    {:mark-read "Mark as Read"
