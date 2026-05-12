@@ -4,6 +4,7 @@
    [re-frame.core :as re-frame]
    [reagent.core :as r]
    [utils.svg :as icons]
+   [utils.macros :refer [defui]]
    [overlays.base :refer [modal-component]]
    [utils.global-ui :refer [avatar]]
    [client.session-store :as store]
@@ -132,7 +133,7 @@
  (fn [db _] (:verification/error db)))
 
 
-(defn advanced-preferences-view []
+(defui advanced-preferences-view []
   (let [tr @(re-frame/subscribe [:i18n/tr])
         policy       @(re-frame/subscribe [:settings/media-preview-policy])
         previews-on? (= policy :on)]
@@ -151,14 +152,14 @@
        [:div.toggle-track
         [:div.toggle-knob]]]]]))
 
-(defn advanced-plugins-view []
+(defui advanced-plugins-view []
   (let [tr @(re-frame/subscribe [:i18n/tr])]
     [:div.settings-section.plugins-view-wrapper
      [:p.verification-description {:style {:margin-bottom "24px"}}
       (tr [:settings.advanced/description])]
      [plugins/plugins-installer]]))
 
-(defn advanced-tab []
+(defui advanced-tab []
   (let [tr @(re-frame/subscribe [:i18n/tr])]
     (r/with-let [!active-sub-tab (r/atom :preferences)]
       [:div.settings-tab-content
@@ -214,7 +215,7 @@
 
 
 
-(defn sidebar-profile-mini []
+(defui sidebar-profile-mini []
   (let [tr      @(re-frame/subscribe [:i18n/tr])
         profile @(re-frame/subscribe [:sdk/profile])]
     [:div.sidebar-profile-mini
@@ -250,7 +251,7 @@
       [:div.status-dot]]]))
 
 
-(defn verification-tab []
+(defui verification-tab []
   (r/with-let [!passphrase (r/atom "")]
     (let [tr              @(re-frame/subscribe [:i18n/tr])
           status          @(re-frame/subscribe [:verification/status])
@@ -299,7 +300,7 @@
           [:span (tr [:settings.verification.status/checking])]])])))
 
 
-(defn my-account-tab [profile]
+(defui my-account-tab [profile]
   (let [tr @(re-frame/subscribe [:i18n/tr])]
     [:<>
      [:h2.settings-heading (tr [:settings.profile/title])]
@@ -314,7 +315,7 @@
             (tr [:settings.profile/unknown-user]))]
        [:div.profile-id (:user-id profile)]]]]))
 
-(defn notifications-tab []
+(defui notifications-tab []
   (let [tr              @(re-frame/subscribe [:i18n/tr])
         status          @(re-frame/subscribe [:push/status])
         current-user    @(re-frame/subscribe [:auth/active-user-id])
@@ -421,7 +422,7 @@
  :settings/available-accounts
  (fn [db _] (:available-accounts db [])))
 
-(defn account-item [{:keys [acc is-active?]}]
+(defui account-item [{:keys [acc is-active?]}]
   (let [tr @(re-frame/subscribe [:i18n/tr])]
     [:div.account-item {:class (when is-active? "active")}
      [:div.account-info
@@ -435,7 +436,7 @@
          {:on-click #(re-frame/dispatch [:auth/switch-account (:userId acc)])}
          (tr [:settings.account-item/switch-button])])]]))
 
-(defn accounts-tab []
+(defui accounts-tab []
   (let [tr           @(re-frame/subscribe [:i18n/tr])
         accounts     @(re-frame/subscribe [:settings/available-accounts])
         current-user @(re-frame/subscribe [:sdk/profile])]
@@ -461,7 +462,7 @@
 
 
 
-(defn language-time-tab []
+(defui language-time-tab []
   (let [tr          @(re-frame/subscribe [:i18n/tr])
         locale      @(re-frame/subscribe [:i18n/locale])]
     [:div.settings-tab-content
@@ -483,7 +484,7 @@
 
 
 
-(defn about-tab []
+(defui about-tab []
   (let [tr       @(re-frame/subscribe [:i18n/tr])
         locale   @(re-frame/subscribe [:i18n/locale])
         version  @(re-frame/subscribe [:app/version])
@@ -508,7 +509,7 @@
 
 
 
-(defn settings-sidebar [active-tab]
+(defui settings-sidebar [active-tab]
   (let [tr @(re-frame/subscribe [:i18n/tr])]
     [:div.settings-sidebar
      [:div.settings-group-label (tr [:settings.groups/user-settings])]
@@ -534,7 +535,7 @@
       (tr [:settings.tabs/advanced])]]))
 
 
-(defn settings-content [_props]
+(defui settings-content [_props]
   (let [tr         @(re-frame/subscribe [:i18n/tr])
         active-tab @(re-frame/subscribe [:settings/active-tab])
         profile    @(re-frame/subscribe [:sdk/profile])]
