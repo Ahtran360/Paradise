@@ -2,6 +2,7 @@
     (:require
      [clojure.string :as str]
      [utils.images :refer [mxc->url url->mxc mxc-image]]
+     [utils.macros :refer [defui]]
      [input.autocomplete :refer [user-mention-options emoji-suggestion-options]]
      ["react" :as react]
      [reagent.core :as r]
