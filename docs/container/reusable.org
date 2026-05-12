@@ -62,7 +62,8 @@ so we'll keep them nicely collected here.
         is-dm?        (:isDirect room-meta)
         is-space?     (:isSpace room-meta)
         in-lobby?     (and (= main-focus :timeline) call-active?)
-        show-actions? (or (not compact?) (= main-focus :call))]
+        show-actions? (or (not compact?) (= main-focus :call))
+        membership    (or (:membership room-meta) "join")]
     [:div.room-header
      [:div.header-left
       [:button.mobile-menu-btn {:on-click #(re-frame/dispatch [:ui/toggle-sidebar])}
@@ -116,7 +117,9 @@ so we'll keep them nicely collected here.
           :on-click (fn [e]
                       (let [mx (.-clientX e)
                             my (.-clientY e)]
-                        (re-frame/dispatch [:context-menu/open {:x mx :y my :items (build-room-actions tr active-id final-name is-space? is-dm?)}])))}
+                        (re-frame/dispatch [:context-menu/open
+                                            {:x mx :y my
+                                             :items (build-room-actions tr active-id final-name is-space? is-dm? :header membership)}])))}
          [icons/more-vertical]]])]))
 
 #+end_src
