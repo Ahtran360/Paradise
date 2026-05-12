@@ -2,6 +2,7 @@
   (:require [re-frame.core :as re-frame]
             [taoensso.timbre :as log]
             [clojure.string :as str]
+            [utils.macros :refer [defui]]
             [utils.svg :as icons]
             [cljs.core.async :refer [go <!]]
             [cljs-workers.core :as main]
@@ -37,7 +38,7 @@
       (.new (.-File (.-DraftAttachment sdk))
             #js {:fileInfo file-info :source source}))))
 
-(defn prepare-attachment [sdk att]
+(defui prepare-attachment [sdk att]
   (let [mime       (or (:mime att) (:mimetype att) "application/octet-stream")
         safe-bytes (if (= (type (:buffer att)) js/Uint8Array)
                      (:buffer att)
@@ -62,7 +63,7 @@
 
 
 
-(defn attachment-preview [room-id attachment index]
+(defui attachment-preview [room-id attachment index]
   [:div.attachment-preview
    (let [{:keys [mimetype mime preview-url filename]} attachment
          resolved-mime (or mime mimetype "application/octet-stream")
@@ -199,7 +200,7 @@
  (fn [db [_ room-id]]
    (get-in db [:composer room-id :loaded-text] "")))
 
-(defn send-attachments! [sdk timeline room attachments text html]
+(defui send-attachments! [sdk timeline room attachments text html]
   (let [total (count attachments)]
     (p/let [_ (p/loop [idx 0]
                 (when (< idx total)
