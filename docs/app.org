@@ -36,6 +36,7 @@ actual UI components themselves.
    [client.key-handler :refer [global-key-listener]]
    [overlays.notifications :as notifications]
    [overlays.settings]
+   [overlays.invites]
    [overlays.quick-switcher]
    [overlays.lightbox]
    [overlays.profiles]
@@ -49,11 +50,10 @@ actual UI components themselves.
    [taoensso.tempura :as tempura :refer [tr]]
    [utils.global-ui :refer [global-reaction-picker modal-root popover-root global-context-menu satellite-overlay make-swipe-handlers]]
    ["@capacitor/app" :refer [App]]
-   [utils.macros :refer [i18n-data]]
+   [utils.macros :refer [i18n-data defui]]
    [utils.svg :as icons]
    [navigation.rooms.room-list :refer [room-list]]
    [container.base :refer [container]]
-
    ))
 #+end_src
 
