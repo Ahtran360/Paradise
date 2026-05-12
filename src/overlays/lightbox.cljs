@@ -3,9 +3,10 @@
             [reagent.core :as r]
             [overlays.base :refer [modal-component]]
             [utils.svg :as icons]
+            [utils.macros :refer [defui]]
             ))
 
-(defn image-lightbox-content [{:keys [url]}]
+(defui image-lightbox-content [{:keys [url]}]
   (r/with-let [!state           (r/atom {:scale 1 :last-scale 1 :x 0 :y 0 :last-x 0 :last-y 0 :start-dist 0})
                !active-pointers (atom {})
                tr               (re-frame/subscribe [:i18n/tr])
