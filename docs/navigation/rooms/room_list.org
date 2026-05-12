@@ -14,6 +14,8 @@
    [cljs-workers.core :as main]
    [client.state :as state]
    [client.session-store :as store]
+   [utils.macros :refer [defui]]
+   [utils.svg :as icons]
    ["react-virtuoso" :refer [Virtuoso]]
    [navigation.rooms.entry :refer [render-room-item active-call-panel]]
    [cljs.core.async :refer [go <!]]))
