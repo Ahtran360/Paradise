@@ -32,7 +32,7 @@ So this is where we'll start allowing that logic to live.
 
 Eventually I'd like to swap these out with SVGs too, but for now they can stay.
 #+begin_src clojurescript :tangle ../../../src/navigation/rooms/entry.cljs
-(defui build-room-actions [tr room-id room-name is-space? is-dm? context membership]
+(defn build-room-actions [tr room-id room-name is-space? is-dm? context membership]
   (let [is-joined?  (= membership "joined")
         is-invited? (= membership "invited")
         is-knocked? (= membership "knocked")]
@@ -733,7 +733,7 @@ for DMs because of this issue. Otherwise that piece can be removed as well.
 
 
 #+begin_src clojurescript :tangle ../../../src/navigation/rooms/entry.cljs
-(defui room-item [initial-props]
+(defn room-item [initial-props]
   (r/with-let [!attempted? (atom false)]
     (fn [{:keys [id name indent is-space? is-closed? is-dm? has-call?
                  active-room unread? highlight? notif-count
