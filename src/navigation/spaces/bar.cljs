@@ -9,6 +9,7 @@
    [cljs.core.async :refer [go <!]]
    [overlays.settings :refer [sidebar-profile-mini]]
    [utils.svg :as icons]
+   [utils.macros :refer [defui]]
    [utils.global-ui :refer [avatar]]))
 
 (re-frame/reg-event-db
@@ -65,8 +66,26 @@
            res  (<! (main/do-with-pool! pool {:handler :fetch-space-hierarchy
                                               :arguments {:space-id space-id}}))]
        (when (= (:status res) "success")
-         (re-frame/dispatch [:space/process-hierarchy space-id (:rooms res)]))))
+         (re-frame/dispatch [:space/process-hierarchy space-id (:rooms res)])
+         (re-frame/dispatch [:rooms/cache-hierarchy-previews (:rooms res)]))))
    {}))
+
+(re-frame/reg-event-db
+ :rooms/cache-hierarchy-previews
+ (fn [db [_ rooms-list]]
+   (let [new-previews (reduce (fn [acc r]
+                                (let [id (or (:room_id r) (:roomId r))]
+                                  (if id
+                                    (assoc acc id
+                                           {:name         (:name r)
+                                            :avatarUrl    (or (:avatar_url r) (:avatarUrl r))
+                                            :topic        (:topic r)
+                                            :joined-count (str (:num_joined_members r))
+                                            :is-space?    (= (:room_type r) "m.space")})
+                                    acc)))
+                              {}
+                              rooms-list)]
+     (update db :room-previews merge new-previews))))
 
 (re-frame/reg-event-db
  :space/hydrate-space
@@ -119,7 +138,7 @@
                       rich-room)))
            child-refs))))
 
-(defn space-icon-item [item active-id]
+(defui space-icon-item [item active-id]
   (let [{:keys [id name avatar-url is-dm?]} item
         stats (if is-dm? item @(re-frame/subscribe [:space/unread-stats id]))
         {:keys [unread? highlight? mentions msg-count]} stats
@@ -159,7 +178,7 @@
        (when (and badge-count (pos? badge-count))
          [:div.space-mention-badge badge-count])])))
 
-(defn virtualized-space-bar [spaces active-space-id]
+(defui virtualized-space-bar [spaces active-space-id]
   (let [space-array (to-array spaces)]
     [:> Virtuoso
      {:style {:height "100%" :width "100%"}
@@ -173,7 +192,7 @@
 
 
 
-(defn spaces-sidebar []
+(defui spaces-sidebar []
   (let [spaces        @(re-frame/subscribe [:spaces/all])
         active-id     @(re-frame/subscribe [:spaces/active-id])
         active-dms    @(re-frame/subscribe [:rooms/active-dm-pops])
