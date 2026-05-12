@@ -18,6 +18,24 @@
                  (dissoc props :animate :viewBox :size))
      shapes]))
 
+(defn composite-icon [{:keys [main top-left top-right bottom-left bottom-right] :as props}]
+  (let [badge (fn [x y b]
+                (when b
+                  (let [shape (if (map? b) (:shape b) b)
+                        attrs (if (map? b) (dissoc b :shape) {})]
+                    [:svg (merge {:x x :y y :width "10" :height "10" :viewBox "0 0 24 24"} attrs)
+                     shape])))]
+    (build-icon-hiccup
+     (dissoc props :main :top-left :top-right :bottom-left :bottom-right)
+     [:<>
+      [:svg {:x "4" :y "2" :width "16" :height "16" :viewBox "0 0 24 24"}
+       main]
+
+      (badge "0" "0" top-left)
+      (badge "14" "0" top-right)
+      (badge "0" "14" bottom-left)
+      (badge "14" "14" bottom-right)])))
+
 (def sun-shapes
   [:path {:d "m 550.92238,108.45841 -92.91577,4.89014 35.31877,270.59588 78.24484,1.63039 58.68324,-272.22627 z m -303.62591,72.21419 -41.53958,27.91458 a 120.31687,120.31687 0 0 0 -43.6485,52.8624 l -18.86965,44.46551 231.16677,140.50667 48.90296,-48.90296 z m 574.567,3.57705 -192.69677,224.68964 48.90296,48.90296 231.47373,-136.92808 -13.32425,-40.59649 A 142.557,142.557 0 0 0 861.58663,223.98262 Z M 524.26975,399.07839 A 143.19254,127.25317 0 0 0 381.07745,526.33161 143.19254,127.25317 0 0 0 524.26975,653.58482 143.19254,127.25317 0 0 0 667.46256,526.33161 143.19254,127.25317 0 0 0 524.26975,399.07839 Z m 450.81176,45.55278 -280.91981,48.90244 0.54312,73.3547 282.00656,29.34136 3.28507,-32.14429 a 366.14382,366.14382 0 0 0 -0.27492,-77.04336 z m -892.500565,1.99523 -3.893303,37.85918 a 428.39608,428.39608 0 0 0 -0.582393,81.56298 l 2.845821,32.17685 282.00656,-29.34188 0.54312,-73.35418 z m 587.964115,153.75598 -48.90296,48.90296 196.15495,229.30022 24.32358,-24.49463 a 255.44602,255.44602 0 0 0 51.51985,-74.7975 l 16.13959,-35.71462 z m -283.099,6.87555 -252.66468,148.33875 48.90296,76.61445 68.46403,47.27256 184.20065,-223.32331 z m 185.29308,58.87186 -75.52769,5.9769 -51.07647,265.16263 80.17289,10.98795 a 174.6582,174.6582 0 0 0 53.59207,-0.95653 l 51.52296,-8.94467 z"}])
 
@@ -184,6 +202,21 @@
 
 (defn hash [props]
   (build-icon-hiccup props hash-shapes))
+
+(def shield-shapes
+  [:<>
+   [:path {:d "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"}]])
+
+(def globe-shapes
+  [:<>
+   [:circle {:cx "12" :cy "12" :r "10"}]
+   [:line {:x1 "2" :y1 "12" :x2 "22" :y2 "12"}]
+   [:path {:d "M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"}]])
+
+(def lock-shapes
+  [:<>
+   [:rect {:x "3" :y "11" :width "18" :height "11" :rx "2" :ry "2"}]
+   [:path {:d "M7 11V7a5 5 0 0 1 10 0v4"}]])
 
 (def phone-shapes
   [:path {:d "M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"}])
@@ -421,3 +454,58 @@
 
 (defn typing-dots [props]
   (build-icon-hiccup props typing-dots-shapes))
+
+(def door-open-shapes
+  [:<>
+   [:path {:d "M13 4h3a2 2 0 0 1 2 2v14"}]
+   [:path {:d "M2 20h3"}]
+   [:path {:d "M13 20h9"}]
+   [:path {:d "M10 12v.01"}]
+   [:path {:d "M13 4.562v16.157a1 1 0 0 1-1.242.97L5 20V5.562a2 2 0 0 1 1.515-1.94l4-1A2 2 0 0 1 13 4.561Z"}]])
+
+(defn door-open [props]
+  (build-icon-hiccup props door-open-shapes))
+
+(def doorbell-shapes
+  [:<>
+   [:rect {:x "7" :y "3" :width "10" :height "18" :rx "2"}]
+   [:circle {:cx "12" :cy "15" :r "2"}]
+   [:line {:x1 "10" :y1 "7" :x2 "14" :y2 "7"}]
+   [:line {:x1 "10" :y1 "9" :x2 "14" :y2 "9"}]])
+
+(defn doorbell [props]
+  (build-icon-hiccup props doorbell-shapes))
+
+(def compass-shapes
+  [:<>
+   [:circle {:cx "12" :cy "12" :r "10"}]
+   [:line {:x1 "12" :y1 "2" :x2 "12" :y2 "22"}]
+   [:line {:x1 "2" :y1 "12" :x2 "22" :y2 "12"}]
+   [:path {:d "M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36z"}]])
+
+(defn compass [props]
+  (build-icon-hiccup props compass-shapes))
+
+(defn members-plus [{:keys [size] :as props}]
+  (let [final-size (or size "20px")]
+    (build-icon-hiccup
+     (assoc props :size final-size)
+     [:<>
+      [:svg {:x "2" :y "2" :width "18" :height "18" :viewBox "0 0 24 24"}
+       members-shapes]
+
+      [:svg {:x "14" :y "14" :width "10" :height "10" :viewBox "0 0 24 24"}
+       plus-shapes]])))
+
+(defn dynamic-room-hash [{:keys [is-public? is-encrypted? is-joinable?] :as props}]
+  (let [clean-props (dissoc props :is-public? :is-encrypted? :is-joinable?)]
+    (composite-icon
+     (merge clean-props
+            {:main hash-shapes
+             :top-right    (when is-public? globe-shapes)
+             :bottom-right (when is-encrypted? shield-shapes)
+             :top-left     (when is-joinable? {:shape plus-shapes
+                                               :class "active-green"
+                                               :size "5px"
+                                               :stroke
+                                               "var(--active-green, #10b981)"})}))))
