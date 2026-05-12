@@ -31,7 +31,7 @@
          [:input.form-input.quick-switcher-input
           {:type "text"
            :auto-focus true
-           :placeholder (tr [:invite-menu/placeholder "Search or enter Matrix ID..."])
+           :placeholder (tr [:invites/placeholder])
            :value @query
            :on-change (fn [e]
                         (reset! query (.. e -target -value))
@@ -50,7 +50,7 @@
           [selectable-list
            {:items          final-items
             :selected-index @selected-index
-            :empty-text     (tr [:invite-menu/empty "No users found."])
+            :empty-text     (tr [:invites/empty])
             :item-class     "quick-switcher-item"
             :key-fn         #(or (:user-id %) (:id %) (:roomId %))
             :on-highlight   #(reset! selected-index %)
@@ -61,14 +61,14 @@
                               (close-fn))
             :render-item    (fn [item _]
                               (if (:is-raw-id? item)
-                                [:div {:style {:display "flex" :align-items "center" :gap "12px" :padding "8px"}}
+                                [:div.invite-user-row
                                  [avatar {:id    (:user-id item)
                                           :name  "?"
                                           :size  28
                                           :shape :rounded}]
-                                 [:div {:style {:display "flex" :flex-direction "column"}}
-                                  [:span.name {:style {:font-weight "bold"}} "Invite user by ID"]
-                                  [:span.sub-name {:style {:font-size "0.8em" :opacity 0.7}} (:user-id item)]]]
+                                 [:div.invite-user-info
+                                  [:span.name.raw-id "Invite user by ID"]
+                                  [:span.sub-name (:user-id item)]]]
                                 (let [room-id      (or (:id item) (:roomId item))
                                       members      @(re-frame/subscribe [:room/members-map room-id])
                                       profile      @(re-frame/subscribe [:sdk/profile])
@@ -78,19 +78,19 @@
                                                           (remove #(= (:user-id %) my-id))
                                                           first))
                                       final-avatar (or (:avatarUrl item) (:avatar item) (:avatar-url other))
-                                      final-name   (if (and other (or (nil? (:name item)) (= (:name item) (tr [:quick-switcher/loading]))))
+                                      final-name   (if (and other (or (nil? (:name item)) (= (:name item) (tr [:invites/loading]))))
                                                      (:display-name other)
                                                      (:name item))]
-                                  [:div {:style {:display "flex" :align-items "center" :gap "12px" :padding "8px"}}
+                                  [:div.invite-user-row
                                    [avatar {:id    room-id
                                             :name  (or final-name "?")
                                             :url   final-avatar
                                             :size  28
                                             :shape :rounded}]
-                                   [:div {:style {:display "flex" :flex-direction "column"}}
+                                   [:div.invite-user-info
                                     [:span.name final-name]
                                     (when other
-                                      [:span.sub-name {:style {:font-size "0.8em" :opacity 0.7}} (:user-id other)])]])))}]]]))))
+                                      [:span.sub-name (:user-id other)])]])))}]]]))))
 
 (defmethod modal-component :invite-user [_]
   invite-menu-content)
