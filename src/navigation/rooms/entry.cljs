@@ -11,7 +11,7 @@
    [utils.macros :refer [defui]]
    [utils.global-ui :refer [avatar long-press-props]]))
 
-(defui build-room-actions [tr room-id room-name is-space? is-dm? context membership]
+(defn build-room-actions [tr room-id room-name is-space? is-dm? context membership]
   (let [is-joined?  (= membership "joined")
         is-invited? (= membership "invited")
         is-knocked? (= membership "knocked")]
@@ -315,7 +315,7 @@
  (fn [db [_ room-id]]
    (get-in db [:room-previews room-id :is-call?])))
 
-(defui room-item [initial-props]
+(defn room-item [initial-props]
   (r/with-let [!attempted? (atom false)]
     (fn [{:keys [id name indent is-space? is-closed? is-dm? has-call?
                  active-room unread? highlight? notif-count
