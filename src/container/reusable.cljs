@@ -1,10 +1,9 @@
 (ns container.reusable
   (:require [re-frame.core :as re-frame]
-            [taoensso.timbre :as log]
             [container.timeline.item :refer [event-tile-render]]
             [navigation.rooms.entry :refer [build-room-actions]]
+            [utils.macros :refer [defui]]
             [utils.svg :as icons]))
-
 
 
 (re-frame/reg-event-db
@@ -27,7 +26,7 @@
  (fn [db _]
    (:side-panel db nil)))
 
-(defn room-header [{:keys [display-name compact? active-id]}]
+(defui room-header [{:keys [display-name compact? active-id]}]
   (let [tr            @(re-frame/subscribe [:i18n/tr])
         main-focus    @(re-frame/subscribe [:container/main-focus])
         side-panel    @(re-frame/subscribe [:container/side-panel])
@@ -37,7 +36,8 @@
         is-dm?        (:isDirect room-meta)
         is-space?     (:isSpace room-meta)
         in-lobby?     (and (= main-focus :timeline) call-active?)
-        show-actions? (or (not compact?) (= main-focus :call))]
+        show-actions? (or (not compact?) (= main-focus :call))
+        membership    (or (:membership room-meta) "join")]
     [:div.room-header
      [:div.header-left
       [:button.mobile-menu-btn {:on-click #(re-frame/dispatch [:ui/toggle-sidebar])}
@@ -91,7 +91,9 @@
           :on-click (fn [e]
                       (let [mx (.-clientX e)
                             my (.-clientY e)]
-                        (re-frame/dispatch [:context-menu/open {:x mx :y my :items (build-room-actions tr active-id final-name is-space? is-dm?)}])))}
+                        (re-frame/dispatch [:context-menu/open
+                                            {:x mx :y my
+                                             :items (build-room-actions tr active-id final-name is-space? is-dm? :header membership)}])))}
          [icons/more-vertical]]])]))
 
 
