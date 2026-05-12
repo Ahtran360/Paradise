@@ -582,6 +582,98 @@ Now before we define the panel we may want to define media buttons...
          (-> js/navigator .-clipboard (.writeText (:link res))))))
          {}))
 #+end_src
+
+
+**** Room Security State and Membership checks!
+
+We need a clean way to check the room's encryption status and whether the
+room is public or not. We'll likely expand on this via room join rules...
+for now this will work though.
+
+#+begin_src clojurescript :tangle ../../../src/navigation/rooms/entry.cljs
+(re-frame/reg-sub
+ :room/membership
+ (fn [db [_ room-id]]
+   (get-in db [:rooms/membership room-id])))
+
+(re-frame/reg-sub
+ :room/membership-loading?
+ (fn [db [_ room-id]]
+   (get-in db [:rooms/membership-loading? room-id])))
+
+(re-frame/reg-event-db
+ :room/clear-membership-loading
+ (fn [db [_ room-id]]
+   (update db :rooms/membership-loading? dissoc room-id)))
+
+(re-frame/reg-event-db
+ :room/set-membership
+ (fn [db [_ room-id status]]
+   (-> db
+       (assoc-in [:rooms/membership room-id] status)
+       (update :rooms/membership-loading? dissoc room-id))))
+
+(re-frame/reg-event-fx
+ :room/fetch-membership
+ (fn [{:keys [db]} [_ room-id]]
+   (if (or (get-in db [:rooms/membership room-id])
+           (get-in db [:rooms/membership-loading? room-id]))
+     {}
+     (do
+       (go
+         (let [res (<! (main/do-with-pool! @state/!engine-pool
+                                           {:handler :fetch-room-membership
+                                            :arguments {:room-id room-id}}))]
+           (if (= (:status res) "success")
+             (re-frame/dispatch [:room/set-membership room-id (:membership res)])
+             (do
+               (js/console.warn "Membership fetch failed for" room-id "-" (:msg res))
+               (re-frame/dispatch [:room/clear-membership-loading room-id])))))
+       {:db (assoc-in db [:rooms/membership-loading? room-id] true)}))))
+
+(re-frame/reg-sub
+ :room/security
+ (fn [db [_ room-id]]
+   (get-in db [:rooms/security room-id])))
+
+(re-frame/reg-sub
+ :room/security-loading?
+ (fn [db [_ room-id]]
+   (get-in db [:rooms/security-loading? room-id])))
+
+(re-frame/reg-event-db
+ :room/clear-security-loading
+ (fn [db [_ room-id]]
+   (update db :rooms/security-loading? dissoc room-id)))
+
+(re-frame/reg-event-db
+ :room/set-security
+ (fn [db [_ room-id data]]
+   (-> db
+       (assoc-in [:rooms/security room-id] data)
+       (update :rooms/security-loading? dissoc room-id))))
+
+(re-frame/reg-event-fx
+ :room/fetch-security
+ (fn [{:keys [db]} [_ room-id]]
+   (if (or (get-in db [:rooms/security room-id])
+           (get-in db [:rooms/security-loading? room-id]))
+     {}
+     (do
+       (go
+         (let [res (<! (main/do-with-pool! @state/!engine-pool
+                                           {:handler :fetch-room-security
+                                            :arguments {:room-id room-id}}))
+               ]
+           (if (= (:status res) "success")
+             (re-frame/dispatch [:room/set-security room-id {:is-public? (:is-public res)
+                                                             :is-encrypted? (:is-encrypted res)}])
+             (do
+               (js/console.warn "Security fetch failed for" room-id "-" (:msg res))
+               (re-frame/dispatch [:room/clear-security-loading room-id])))))
+       {:db (assoc-in db [:rooms/security-loading? room-id] true)}))))
+#+end_src
+
 **** Room Type Checking?
 
 Now we need to provide utilize our room preview to actually
