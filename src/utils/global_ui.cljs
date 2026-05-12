@@ -4,6 +4,7 @@
    [taoensso.timbre :as log]
    [clojure.string :as str]
    [reagent.core :as r]
+   [utils.macros :refer [defui]]
    [overlays.base :refer [modal-component popover-component]]
    [utils.svg :as icons]
    [utils.images :refer [mxc-image]]
@@ -43,7 +44,7 @@
  (fn [db _]
    (:context-menu db {:open? false})))
 
-(defn global-context-menu []
+(defui global-context-menu []
   (r/with-let [!drag-y (r/atom 0)
                !start-y (r/atom 0)
                !safe-to-click? (r/atom false)
@@ -103,6 +104,7 @@
             :z-index 9998}
            [:div.universal-context-menu
             {:class (when is-mobile? "mobile-sheet")
+             :on-context-menu (fn [e] (.preventDefault e))
              :on-pointer-down (when is-mobile? handle-ptr-down)
              :on-pointer-move (when is-mobile? handle-ptr-move)
              :on-pointer-up   (when is-mobile? handle-ptr-up)
