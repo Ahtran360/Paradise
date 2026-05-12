@@ -613,20 +613,34 @@ component.
         active-space    @(re-frame/subscribe [:spaces/active-metadata])
         closed-drawers  @(re-frame/subscribe [:rooms/closed-drawers])
         active-filter   @(re-frame/subscribe [:room-list/active-filter])
+        join-mode?      @(re-frame/subscribe [:rooms/join-mode?])
         client          nil
         room-array      (to-array rooms)]
     [:div.sidebar-rooms
-     [:div.room-list-header
+
+     [:div.room-list-header-container
+      {:style {:display "flex" :justify-content "space-between" :align-items "center" :padding-right "16px"}}
       (if active-space
         [:h3.room-list-header (:name active-space)]
-        [:h3.room-list-header (tr [:navigation.room-list.headers/home])])]
+        [:h3.room-list-header (tr [:navigation.room-list.headers/home])])
+
+      (when active-space
+        [:button.header-icon-btn
+         {:class (when join-mode? "active-green")
+          :title (if join-mode? "Hide Joinable Rooms" "Show Joinable Rooms")
+          :on-click #(re-frame/dispatch [:rooms/toggle-join-mode])}
+         [icons/compass {:size "20px"}]
+         ])]
+
      (when-not active-space
        [filter-toggle-bar])
+
      (if (or (nil? room-array) (== (alength room-array) 0))
        [:div.empty-state (tr [:navigation.room-list.empty-state/no-rooms])]
        [:div.room-collection
         [virtualized-room-list tr client room-array active-space active-room closed-drawers active-filter]])
      [active-call-panel]]))
+
 
 #+end_src
 
