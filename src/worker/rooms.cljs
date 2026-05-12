@@ -246,3 +246,109 @@
                            {:status :error :msg (str "Hierarchy fetch failed: " (.-status resp))}))
                        (catch :default e
                          {:status :error :msg (str e)})))))
+
+
+(worker/register :fetch-room-membership
+                 (fn [{:keys [room-id]}]
+                   (go
+                     (if-let [client @state/!client]
+                       (try
+                         (if-let [room (.getRoom client room-id)]
+                           (let [mem-enum (.membership room)
+                                 status (cond
+                                          (= mem-enum 0) "invited"
+                                          (= mem-enum 1) "joined"
+                                          (= mem-enum 2) "left"
+                                          (= mem-enum 3) "knocked"
+                                          (= mem-enum 4) "banned"
+                                          :else "joined")]
+                             {:status "success" :room-id room-id :membership status})
+                           {:status "error" :msg "Room not found in local cache"})
+                         (catch :default e
+                           {:status "error" :msg (str e)}))
+                       {:status "error" :msg "No active client"}))))
+
+(worker/register :fetch-room-security
+                 (fn [{:keys [room-id]}]
+                   (go
+                     (if-let [client @state/!client]
+                       (try
+                         (if-let [room (.getRoom client room-id)]
+                           (let [is-public (.isPublic room)
+                                 is-enc    (<p! (.isEncrypted room))]
+                             {:status "success"
+                              :room-id room-id
+                              :is-public is-public
+                              :is-encrypted is-enc})
+                           {:status "error" :msg (str "getRoom returned null for " room-id)})
+                         (catch :default e
+                           {:status "error" :msg (str e)}))
+                       {:status "error" :msg "Client not initialized"}))))
+
+
+(worker/register :join-oom
+                (fn [{:keys [room-id]}]
+                   (go
+                     (if-let [client @state/!client]
+                       (try
+                         (if-let [room (.getRoom client room-id)]
+                           (<p! (.join room))
+                           (<p! (.joinRoomById client room-id)))
+
+                         {:status "success" :room-id room-id}
+                         (catch :default e
+                           {:status "error" :msg (str e)}))
+                       {:status "error" :msg "No active client"}))))
+
+
+(worker/register :leave-room
+  (fn [{:keys [room-id]}]
+    (go
+      (if-let [client @state/!client]
+        (try
+          (if-let [room (.getRoom client room-id)]
+            (do
+              (<p! (.leave room))
+              {:status "success" :room-id room-id})
+            {:status "error" :msg "Room not found in local cache"})
+          (catch :default e
+            {:status "error" :msg (str e)}))
+        {:status "error" :msg "No active client"}))))
+
+(worker/register :invite-user
+  (fn [{:keys [room-id user-id]}]
+    (go
+      (if-let [client @state/!client]
+        (try
+          (if-let [room (.getRoom client room-id)]
+            (do
+              (<p! (.inviteUserById room user-id))
+              {:status "success" :room-id room-id :user-id user-id})
+            {:status "error" :msg "Room not found in local cache"})
+          (catch :default e
+            {:status "error" :msg (str e)}))
+        {:status "error" :msg "No active client"}))))
+
+(worker/register :knock-room
+                 (fn [{:keys [room-id]}]
+                   (go
+                     (if-let [client @state/!client]
+                       (try
+                         (<p! (.knock client room-id js/undefined #js []))
+                         {:status "success" :room-id room-id}
+                         (catch :default e
+                           {:status "error" :msg (str e)}))
+                       {:status "error" :msg "No active client"}))))
+
+(worker/register :copy-room-link
+                 (fn [{:keys [room-id]}]
+                   (go
+                     (if-let [client @state/!client]
+                       (try
+                         (if-let [room (.getRoom client room-id)]
+                           (let [link (<p! (.matrixToPermalink room))]
+                             {:status "success" :link link})
+                           {:status "error" :msg "Room not found in local cache"})
+                         (catch :default e
+                           {:status "error" :msg (str e)}))
+                       {:status "error" :msg "No active client"}))))
