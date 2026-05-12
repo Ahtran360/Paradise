@@ -211,7 +211,7 @@ Probably needs a better name (and logical grouping)
 ***** Login Field
 
 #+begin_src clojurescript :tangle ../../src/auth/events.cljs
-(defn login-field [{:keys [id label type value on-change disabled]}]
+(defui login-field [{:keys [id label type value on-change disabled]}]
   [:div.field-group.mb-4
    [:label.field-label {:for id} label]
    [:input.field-input
@@ -228,7 +228,7 @@ Probably needs a better name (and logical grouping)
 This needs to be broken up a good bit, but it'll suffice for now
 
 #+begin_src clojurescript :tangle ../../src/auth/events.cljs
-(defn login-screen []
+(defui login-screen []
   (let [fields (r/atom {:hs (or js/process.env.MATRIX_HOMESERVER "https://matrix.org")
                         :user ""
                         :pass ""})]
