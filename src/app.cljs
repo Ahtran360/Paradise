@@ -10,6 +10,7 @@
    [client.key-handler :refer [global-key-listener]]
    [overlays.notifications :as notifications]
    [overlays.settings]
+   [overlays.invites]
    [overlays.quick-switcher]
    [overlays.lightbox]
    [overlays.profiles]
@@ -23,11 +24,10 @@
    [taoensso.tempura :as tempura :refer [tr]]
    [utils.global-ui :refer [global-reaction-picker modal-root popover-root global-context-menu satellite-overlay make-swipe-handlers]]
    ["@capacitor/app" :refer [App]]
-   [utils.macros :refer [i18n-data]]
+   [utils.macros :refer [i18n-data defui]]
    [utils.svg :as icons]
    [navigation.rooms.room-list :refer [room-list]]
    [container.base :refer [container]]
-
    ))
 
 #_(def default-db
@@ -222,7 +222,7 @@
       :ui/hotswap-css href})))
 
 
-(defn booting-screen []
+(defui booting-screen []
   (let [tr @(re-frame/subscribe [:i18n/tr])]
     [:div.boot-container
      [:div.boot-content
@@ -255,7 +255,7 @@
                   (re-frame/dispatch [:native/hardware-back]))))
 
 
-(defn main-layout []
+(defui main-layout []
   (r/with-let [!drag-state (r/atom {:start-x nil :dx 0})]
     (let [auth-status   @(re-frame/subscribe [:auth/status])
           sidebar-open? @(re-frame/subscribe [:ui/sidebar-open?])
