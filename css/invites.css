@@ -1,0 +1,18 @@
+
+.invite-user-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px;
+}
+.invite-user-info {
+    display: flex;
+    flex-direction: column;
+}
+.invite-user-info .name.raw-id {
+    font-weight: bold;
+}
+.invite-user-info .sub-name {
+    font-size: 0.8em;
+    opacity: 0.7;
+}
