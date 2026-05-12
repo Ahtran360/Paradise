@@ -5,6 +5,8 @@
    [cljs-workers.core :as main]
    [client.state :as state]
    [client.session-store :as store]
+   [utils.macros :refer [defui]]
+   [utils.svg :as icons]
    ["react-virtuoso" :refer [Virtuoso]]
    [navigation.rooms.entry :refer [render-room-item active-call-panel]]
    [cljs.core.async :refer [go <!]]))
@@ -52,14 +54,12 @@
 
 
 
-
-
-(defn flatten-tree [rooms-map children-map space-orders closed-drawers parent-id depth]
+(defn flatten-tree [rooms-map children-map space-orders closed-drawers previews-map join-mode? parent-id depth]
   (let [sdk-children    (get children-map parent-id [])
         manual-children (->> (vals rooms-map)
                              (filter #(= (safe-get % "first-parent-id" :first-parent-id) parent-id))
-                             (map (fn [r] {:id         (or (safe-get r "id" :id) (safe-get r "roomId" :roomId))
-                                           :is-space?  (safe-get r "isSpace" :isSpace)})))
+                             (map (fn [r] {:id        (or (safe-get r "id" :id) (safe-get r "roomId" :roomId))
+                                           :is-space? (safe-get r "isSpace" :isSpace)})))
 
         orders-for-parent (get space-orders parent-id {})
 
@@ -69,26 +69,31 @@
                              (vec))]
     (reduce
      (fn [acc {:keys [id is-space?]}]
-       (let [summary       (get rooms-map id)
-             item          {:id                         id
-                            :is-space?                  is-space?
-                            :depth                      depth
-                            :activeRoomCallParticipants (when summary (safe-get summary "activeRoomCallParticipants" :activeRoomCallParticipants))
-                            :name                       (if summary (or (safe-get summary "name" :name) "Loading...") "Loading...")
-                            :avatar                     (when summary (safe-get summary "avatar" :avatar))
-                            :unreadNotificationsCount   (if summary (or (safe-get summary "unreadNotificationsCount" :unreadNotificationsCount) 0) 0)
-                            :unreadMentionsCount        (if summary (or (safe-get summary "unreadMentionsCount" :unreadMentionsCount) 0) 0)}
-             acc-with-item (conj acc item)]
+       (let [summary   (get rooms-map id)
+             preview   (get previews-map id)
+             unjoined? (nil? summary)]
+         (if (and unjoined? (not join-mode?))
+           acc
+           (let [item          {:id                         id
+                                :is-space?                  is-space?
+                                :depth                      depth
+                                :is-unjoined?               unjoined?
+                                :activeRoomCallParticipants (when summary (safe-get summary "activeRoomCallParticipants" :activeRoomCallParticipants))
+                                :name                       (if summary
+                                                              (or (safe-get summary "name" :name) "Loading...")
+                                                              (or (:name preview) "Loading..."))
+                                :avatar                     (if summary
+                                                              (safe-get summary "avatar" :avatar)
+                                                              (or (:avatarUrl preview) (:avatar-url preview)))
+                                :unreadNotificationsCount   (if summary (or (safe-get summary "unreadNotificationsCount" :unreadNotificationsCount) 0) 0)
+                                :unreadMentionsCount        (if summary (or (safe-get summary "unreadMentionsCount" :unreadMentionsCount) 0) 0)}
+                 acc-with-item (conj acc item)]
 
-         (if (and is-space? (not (contains? closed-drawers id)))
-           (into acc-with-item (flatten-tree rooms-map children-map space-orders closed-drawers id (inc depth)))
-           acc-with-item)))
+             (if (and is-space? (not (contains? closed-drawers id)))
+               (into acc-with-item (flatten-tree rooms-map children-map space-orders closed-drawers previews-map join-mode? id (inc depth)))
+               acc-with-item)))))
      []
      child-refs)))
-
-
-
-
 
 (re-frame/reg-sub :rooms/active-id (fn [db _] (:active-room-id db)))
 (re-frame/reg-sub :space-rooms (fn [db _] (vec (or (:space-rooms db) []))))
@@ -119,7 +124,20 @@
  (fn [db [_ room-id]]
    (get-in db [:room-previews room-id])))
 
+(re-frame/reg-event-db
+ :rooms/toggle-join-mode
+       (fn [db _]
+        (update db :room-list/join-mode? not)))
 
+(re-frame/reg-sub
+ :rooms/join-mode?
+       (fn [db _]
+        (get db :room-list/join-mode? false)))
+
+(re-frame/reg-sub
+ :rooms/previews-map
+       (fn [db _]
+        (get db :room-previews {})))
 
 
 
@@ -165,11 +183,12 @@
  :<- [:space-children/map]
  :<- [:rooms/space-orders]
  :<- [:rooms/closed-drawers]
- (fn [[active-id ordered-list indexed-map children-map space-orders closed-drawers] _]
-   (if-not active-id
-     ordered-list
-     (flatten-tree indexed-map children-map space-orders closed-drawers active-id 0))))
-
+ :<- [:rooms/previews-map]
+ :<- [:rooms/join-mode?]
+ (fn [[active-id ordered-list indexed-map children-map space-orders closed-drawers previews-map join-mode?] _]
+  (if-not active-id
+   ordered-list
+   (flatten-tree indexed-map children-map space-orders closed-drawers previews-map join-mode? active-id 0))))
 
 
 
@@ -183,22 +202,22 @@
 (re-frame/reg-sub :rooms/closed-drawers (fn [db _] (get-in db [:ui :closed-drawers] #{})))
 
 (re-frame/reg-sub
- :space/unread-stats
- :<- [:rooms/unfiltered-indexed-map]
- :<- [:space-children/map]
- :<- [:rooms/space-orders]
- (fn [[rooms-map children-map space-orders] [_ space-id]]
-   (let [rooms-in-space (flatten-tree rooms-map children-map space-orders #{} space-id 0)
-         stats (reduce (fn [acc room]
-                         (-> acc
-                             (update :notifs + (get room :unreadNotificationsCount 0))
-                             (update :mentions + (get room :unreadMentionsCount 0))))
-                       {:notifs 0 :mentions 0} rooms-in-space)]
-     {:unread? (pos? (:notifs stats))
-      :notif-count (:notifs stats)
-      :mentions (:mentions stats)
-      :highlight? (pos? (:mentions stats))})))
+                                   :space/unread-stats
+                                   :<- [:rooms/unfiltered-indexed-map]
+                                   :<- [:space-children/map]
+                                   :<- [:rooms/space-orders]
+                                   (fn [[rooms-map children-map space-orders] [_ space-id]]
+                                    (let [rooms-in-space (flatten-tree rooms-map children-map space-orders #{} {} false space-id 0)
 
+                                          stats (reduce (fn [acc room]
+                                                         (-> acc
+                                                          (update :notifs + (get room :unreadNotificationsCount 0))
+                                                          (update :mentions + (get room :unreadMentionsCount 0))))
+    {:notifs 0 :mentions 0} rooms-in-space)]
+                                        {:unread? (pos? (:notifs stats))
+                                         :notif-count (:notifs stats)
+                                         :mentions (:mentions stats)
+                                         :highlight? (pos? (:mentions stats))})))
 
 (re-frame/reg-sub
  :rooms/active-dm-pops
@@ -239,14 +258,21 @@
  :rooms/select
  (fn [{:keys [db]} [_ room-id opts]]
    (let [current-room-id (:active-room-id db)
-         current-user    (:active-user-id db)]
+         current-user    (:active-user-id db)
+         membership      (get-in db [:rooms/membership room-id])
+         in-cache?       (contains? (:rooms-unfiltered-cache db) room-id)
+         needs-join?     (or (not in-cache?) (= membership "invite"))]
      (store/set-setting! (str "last_room_" current-user) room-id)
-
      (if (= current-room-id room-id)
        {:db (assoc-in db [:ui :sidebar-open?] false)}
-       {:db         (assoc db :active-room-id nil)
-        :dispatch-n [(when current-room-id [:sdk/cleanup-timeline current-room-id])]
-        :dispatch-later [{:ms 20 :dispatch [:rooms/finish-select room-id opts]}]}))))
+       (let [base-db (assoc db :active-room-id nil)
+             cleanup (when current-room-id [:sdk/cleanup-timeline current-room-id])]
+         (if needs-join?
+           {:db         base-db
+            :dispatch-n (remove nil? [cleanup [:rooms/join room-id opts]])}
+           {:db             base-db
+            :dispatch-n     (remove nil? [cleanup])
+            :dispatch-later [{:ms 20 :dispatch [:rooms/finish-select room-id opts]}]}))))))
 
 
 (re-frame/reg-event-fx
@@ -285,7 +311,8 @@
       :dispatch-n         dispatches})))
 
 
-(defn filter-toggle-bar []
+
+(defui filter-toggle-bar []
   (let [tr            @(re-frame/subscribe [:i18n/tr])
         active-filter @(re-frame/subscribe [:room-list/active-filter])]
     [:div.filter-bar
@@ -321,7 +348,7 @@
 
 (re-frame/reg-sub :room-list/active-filter (fn [db _] (get db :active-filter-id "people")))
 
-(defn virtualized-room-list [tr client room-array active-space active-room closed-drawers active-filter]
+(defui virtualized-room-list [tr client room-array active-space active-room closed-drawers active-filter]
   (let [item-renderer (render-room-item tr client room-array active-space active-room closed-drawers active-filter)]
     [:> Virtuoso
      {:style {:height "100%" :width "100%"}
@@ -329,24 +356,38 @@
       :endReached #(re-frame/dispatch [:room-list/paginate-global])
       :itemContent item-renderer}]))
 
-(defn room-list []
+(defui room-list []
   (let [tr              @(re-frame/subscribe [:i18n/tr])
         rooms           @(re-frame/subscribe [:rooms/current-view])
         active-room     @(re-frame/subscribe [:rooms/active-id])
         active-space    @(re-frame/subscribe [:spaces/active-metadata])
         closed-drawers  @(re-frame/subscribe [:rooms/closed-drawers])
         active-filter   @(re-frame/subscribe [:room-list/active-filter])
+        join-mode?      @(re-frame/subscribe [:rooms/join-mode?])
         client          nil
         room-array      (to-array rooms)]
     [:div.sidebar-rooms
-     [:div.room-list-header
+
+     [:div.room-list-header-container
+      {:style {:display "flex" :justify-content "space-between" :align-items "center" :padding-right "16px"}}
       (if active-space
         [:h3.room-list-header (:name active-space)]
-        [:h3.room-list-header (tr [:navigation.room-list.headers/home])])]
+        [:h3.room-list-header (tr [:navigation.room-list.headers/home])])
+
+      (when active-space
+        [:button.header-icon-btn
+         {:class (when join-mode? "active-green")
+          :title (if join-mode? "Hide Joinable Rooms" "Show Joinable Rooms")
+          :on-click #(re-frame/dispatch [:rooms/toggle-join-mode])}
+         [icons/compass {:size "20px"}]
+         ])]
+
      (when-not active-space
        [filter-toggle-bar])
+
      (if (or (nil? room-array) (== (alength room-array) 0))
        [:div.empty-state (tr [:navigation.room-list.empty-state/no-rooms])]
        [:div.room-collection
         [virtualized-room-list tr client room-array active-space active-room closed-drawers active-filter]])
      [active-call-panel]]))
+
