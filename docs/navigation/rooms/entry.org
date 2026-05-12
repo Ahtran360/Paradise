@@ -506,8 +506,82 @@ Now before we define the panel we may want to define media buttons...
 #+end_src
 
 
+**** Room Action Reframe Subscriptions and Events
 
 
+#+begin_src clojurescript :tangle ../../../src/navigation/rooms/entry.cljs
+(re-frame/reg-event-fx
+ :rooms/join
+  (fn [{:keys [db]} [_ room-id opts]]
+   (go
+     (let [res (<! (main/do-with-pool! @state/!engine-pool
+                                       {:handler :join-room
+                                        :arguments {:room-id room-id}}))]
+       (if (= (:status res) "success")
+         (do
+           (taoensso.timbre/info "Successfully joined room:" room-id)
+           (re-frame/dispatch [:room/set-membership room-id "joined"])
+           (re-frame/dispatch [:rooms/finish-select room-id opts]))
+         (log/error "Failed to join room:" (:msg res)))))
+   {:db (assoc-in db [:rooms/joining? room-id] true)}))
+
+
+(re-frame/reg-event-fx
+ :rooms/leave
+ (fn [{:keys [db]} [_ room-id]]
+   (main/do-with-pool! @state/!engine-pool
+                       {:handler :leave-room
+                        :arguments {:room-id room-id}})
+   {:db (assoc-in db [:rooms/loading-state room-id] :leaving)
+    :dispatch [:rooms/clear-active-if-matches room-id]}))
+
+
+(re-frame/reg-event-fx
+ :rooms/invite-user
+ (fn [_ [_ room-id user-id]]
+   (go
+     (let [res (<! (main/do-with-pool! @state/!engine-pool
+                                       {:handler :invite-user
+                                        :arguments {:room-id room-id :user-id user-id}}))]
+       (if (= (:status res) "success")
+         (log/info "Successfully invited" user-id "to" room-id)
+         (log/error "Failed to invite user:" (:msg res)))))
+   {}))
+
+(re-frame/reg-event-fx
+ :rooms/invite-from-dm
+ (fn [{:keys [db]} [_ target-room-id dm-room-id]]
+   (let [my-id   (get-in db [:profile :user-id])
+         members (get-in db [:room-members dm-room-id :data])
+         other   (->> (vals members)
+                      (remove #(= (:user-id %) my-id))
+                      first)]
+     (if other
+       {:dispatch [:room/invite-user target-room-id (:user-id other)]}
+       (do
+         (log/warn "Could not resolve user from DM room" dm-room-id)
+         {})))))
+
+
+(re-frame/reg-event-fx
+ :rooms/knock
+ (fn [{:keys [db]} [_ room-id]]
+   (main/do-with-pool! @state/!engine-pool
+                       {:handler :knock-room
+                        :arguments {:room-id room-id}})
+   {:db (assoc-in db [:rooms/loading-state room-id] :knocking)}))
+
+(re-frame/reg-event-fx
+ :rooms/copy-link
+ (fn [{:keys [db]} [_ room-id]]
+   (go
+     (let [res (<! (main/do-with-pool! @state/!engine-pool
+                                       {:handler :copy-room-link
+                                        :arguments {:room-id room-id}}))]
+       (when (= (:status res) "success")
+         (-> js/navigator .-clipboard (.writeText (:link res))))))
+         {}))
+#+end_src
 **** Room Type Checking?
 
 Now we need to provide utilize our room preview to actually
