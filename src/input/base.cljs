@@ -44,7 +44,7 @@
 
 
 
-(defn extract-metadata [raw-file]
+(defui extract-metadata [raw-file]
   (p/create
    (fn [resolve _]
      (let [mime      (.-type raw-file)
@@ -190,7 +190,7 @@
    (= (:id active-popover) :inline-emoji)))
 
 
-(defn inline-editor [item active-id]
+(defui inline-editor [item active-id]
   (r/with-let [!editor (r/atom nil)]
     (fn [item active-id]
       (let [m-content    (get-in item [:content :inner :content])
