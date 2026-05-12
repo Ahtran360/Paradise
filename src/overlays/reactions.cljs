@@ -2,6 +2,7 @@
 (:require
  [utils.svg :as icons]
  [utils.global-ui :refer [avatar]]
+ [utils.macros :refer [defui]]
  [utils.images :refer [mxc-image]]
  [re-frame.core :as re-frame]
  [clojure.string :as str]
@@ -11,7 +12,7 @@
 
 (defmethod popover-component :inline-emoji [_] nil)
 
-(defn reaction-details-content [{:keys [room-id reactions]}]
+(defui reaction-details-content [{:keys [room-id reactions]}]
   (let [tr          @(re-frame/subscribe [:i18n/tr])
         members-map @(re-frame/subscribe [:room/members-map room-id])
         close-fn    #(re-frame/dispatch [:ui/close-modal])]
