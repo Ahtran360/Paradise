@@ -2,54 +2,100 @@
   (:require
    [clojure.string :as str]
    [re-frame.core :as re-frame]
+   [cljs-workers.core :as main]
    [reagent.core :as r]
+   [client.state :as state]
+   [cljs.core.async :refer [go <!]]
    [taoensso.timbre :as log]
    [utils.svg :as icons]
+   [utils.macros :refer [defui]]
    [utils.global-ui :refer [avatar long-press-props]]))
 
-(defn build-room-actions [tr room-id room-name is-space? is-dm?]
-  (remove nil?
-          [{:id "mark-read"
-            :label (tr [:navigation.actions/mark-read])
-            :icon [icons/check]
-            :action #(re-frame/dispatch [:rooms/mark-read room-id])}
-           {:id "copy-link"
-            :label (tr [:navigation.actions/copy-link])
-            :icon [icons/link]
-            :action #(js/console.log "Copy permalink for" room-id)}
-           (when-not is-dm?
-             {:id "call"
-              :label (if in-lobby?
-                       (tr [:container.header/join-call])
-                       (tr [:container.header/start-call]))
-              :icon [icons/phone]
-              :action (fn []
-                        (re-frame/dispatch [:call/init-widget room-id])
-                        (re-frame/dispatch [:container/set-main-focus :call]))})
-           {:id "search"
-            :label (tr [:container.header/search])
-            :icon [icons/search]
-            :class-name "mobile-menu-item"
-            :action #(re-frame/dispatch [:container/set-side-panel :search])}
-           {:id "pins"
-            :label (tr [:container.header/pinned-messages])
-            :icon [icons/pins]
-            :class-name "mobile-menu-item"
-            :action (fn []
-                      (re-frame/dispatch [:container/set-side-panel :pins])
-                      (re-frame/dispatch [:room/fetch-pinned-events room-id]))}
-           (when is-dm? {:id "members"
-            :label (tr [:container.header/member-list])
-            :icon [icons/members]
-            :action #(re-frame/dispatch [:container/set-side-panel :members])})
-           {:id "leave"
-            :label (if is-space? (tr [:navigation.actions/leave-space]) (tr [:navigation.actions/leave-room]))
-            :icon [icons/leave]
-            :class-name "danger"
-            :action #(re-frame/dispatch [:rooms/leave room-id])}]))
+(defui build-room-actions [tr room-id room-name is-space? is-dm? context membership]
+  (let [is-joined?  (= membership "joined")
+        is-invited? (= membership "invited")
+        is-knocked? (= membership "knocked")]
+    (remove nil?
+            [{:id "copy-link"
+              :label (tr [:navigation.actions/copy-link])
+              :icon [icons/link]
+              :action #(re-frame/dispatch [:rooms/copy-link room-id])}
 
+             (when is-invited?
+               {:id "join"
+                :label (if is-space? (tr [:navigation.actions/join-space]) (tr [:navigation.actions/join-room]))
+                :icon [icons/door-open]
+                :class-name "success"
+                :action #(re-frame/dispatch [:rooms/join room-id])})
 
-(defn media-button [active? icon-on icon-off title on-click color-active color-inactive]
+             (when is-invited?
+               {:id "reject"
+                :label (tr [:navigation.actions/reject-invite])
+                :icon [icons/leave]
+                :class-name "danger"
+                :action #(re-frame/dispatch [:rooms/leave room-id])})
+
+             (when (and (not is-joined?) (not is-invited?) (not is-knocked?))
+               {:id "knock"
+                :label (tr [:navigation.actions/knock-room])
+                :icon [icons/doorbell]
+                :action #(re-frame/dispatch [:rooms/knock room-id])})
+
+             (when (and is-joined? (= context :list))
+               {:id "mark-read"
+                :label (tr [:navigation.actions/mark-read])
+                :icon [icons/check]
+                :action #(re-frame/dispatch [:rooms/mark-read room-id])})
+
+             (when is-joined?
+               {:id "invite"
+                :label (tr [:navigation.actions/invite-user])
+                :icon [icons/members-plus]
+                :action #(re-frame/dispatch [:ui/open-modal :invite-user
+
+                                             {:backdrop-props {:class "lightbox-backdrop"}
+                                              :window-props   {:style {:background "transparent"
+                                                                       :box-shadow "none"}}
+                                              :room-id room-id}])})
+
+             (when (and is-joined? (not is-dm?) (= context :header))
+               {:id "call"
+                :label (tr [:container.header/start-call])
+                :icon [icons/phone]
+                :action (fn []
+                          (re-frame/dispatch [:call/init-widget room-id])
+                          (re-frame/dispatch [:container/set-main-focus :call]))})
+
+             (when (and is-joined? (= context :header))
+               {:id "search"
+                :label (tr [:container.header/search])
+                :icon [icons/search]
+                :class-name "mobile-menu-item"
+                :action #(re-frame/dispatch [:container/set-side-panel :search])})
+
+             (when (and is-joined? (= context :header))
+               {:id "pins"
+                :label (tr [:container.header/pinned-messages])
+                :icon [icons/pins]
+                :class-name "mobile-menu-item"
+                :action (fn []
+                          (re-frame/dispatch [:container/set-side-panel :pins])
+                          (re-frame/dispatch [:room/fetch-pinned-events room-id]))})
+
+             (when (and is-joined? is-dm? (= context :header))
+               {:id "members"
+                :label (tr [:container.header/member-list])
+                :icon [icons/members]
+                :action #(re-frame/dispatch [:container/set-side-panel :members])})
+
+             (when (or is-joined? is-knocked?)
+               {:id "leave"
+                :label (if is-space? (tr [:navigation.actions/leave-space]) (tr [:navigation.actions/leave-room]))
+                :icon [icons/leave]
+                :class-name "danger"
+                :action #(re-frame/dispatch [:rooms/leave room-id])})])))
+
+(defui media-button [active? icon-on icon-off title on-click color-active color-inactive]
   [:button.media-btn
    {:style {:background "transparent"
             :border "none"
@@ -62,7 +108,7 @@
     :on-click on-click}
    (if active? icon-on icon-off)])
 
-(defn active-call-panel []
+(defui active-call-panel []
   (let [active-call-id  @(re-frame/subscribe [:call/active-room])
         audio-on?       @(re-frame/subscribe [:call/audio-enabled?])
         video-on?       @(re-frame/subscribe [:call/video-enabled?])
@@ -110,12 +156,166 @@
          #(re-frame/dispatch [:call/toggle-screen-share])
          "var(--accent-color)" "var(--text-normal)"]]])))
 
+(re-frame/reg-event-fx
+ :rooms/join
+  (fn [{:keys [db]} [_ room-id opts]]
+   (go
+     (let [res (<! (main/do-with-pool! @state/!engine-pool
+                                       {:handler :join-room
+                                        :arguments {:room-id room-id}}))]
+       (if (= (:status res) "success")
+         (do
+           (taoensso.timbre/info "Successfully joined room:" room-id)
+           (re-frame/dispatch [:room/set-membership room-id "joined"])
+           (re-frame/dispatch [:rooms/finish-select room-id opts]))
+         (log/error "Failed to join room:" (:msg res)))))
+   {:db (assoc-in db [:rooms/joining? room-id] true)}))
+
+
+(re-frame/reg-event-fx
+ :rooms/leave
+ (fn [{:keys [db]} [_ room-id]]
+   (main/do-with-pool! @state/!engine-pool
+                       {:handler :leave-room
+                        :arguments {:room-id room-id}})
+   {:db (assoc-in db [:rooms/loading-state room-id] :leaving)
+    :dispatch [:rooms/clear-active-if-matches room-id]}))
+
+
+(re-frame/reg-event-fx
+ :rooms/invite-user
+ (fn [_ [_ room-id user-id]]
+   (go
+     (let [res (<! (main/do-with-pool! @state/!engine-pool
+                                       {:handler :invite-user
+                                        :arguments {:room-id room-id :user-id user-id}}))]
+       (if (= (:status res) "success")
+         (log/info "Successfully invited" user-id "to" room-id)
+         (log/error "Failed to invite user:" (:msg res)))))
+   {}))
+
+(re-frame/reg-event-fx
+ :rooms/invite-from-dm
+ (fn [{:keys [db]} [_ target-room-id dm-room-id]]
+   (let [my-id   (get-in db [:profile :user-id])
+         members (get-in db [:room-members dm-room-id :data])
+         other   (->> (vals members)
+                      (remove #(= (:user-id %) my-id))
+                      first)]
+     (if other
+       {:dispatch [:room/invite-user target-room-id (:user-id other)]}
+       (do
+         (log/warn "Could not resolve user from DM room" dm-room-id)
+         {})))))
+
+
+(re-frame/reg-event-fx
+ :rooms/knock
+ (fn [{:keys [db]} [_ room-id]]
+   (main/do-with-pool! @state/!engine-pool
+                       {:handler :knock-room
+                        :arguments {:room-id room-id}})
+   {:db (assoc-in db [:rooms/loading-state room-id] :knocking)}))
+
+(re-frame/reg-event-fx
+ :rooms/copy-link
+ (fn [{:keys [db]} [_ room-id]]
+   (go
+     (let [res (<! (main/do-with-pool! @state/!engine-pool
+                                       {:handler :copy-room-link
+                                        :arguments {:room-id room-id}}))]
+       (when (= (:status res) "success")
+         (-> js/navigator .-clipboard (.writeText (:link res))))))
+         {}))
+
+(re-frame/reg-sub
+ :room/membership
+ (fn [db [_ room-id]]
+   (get-in db [:rooms/membership room-id])))
+
+(re-frame/reg-sub
+ :room/membership-loading?
+ (fn [db [_ room-id]]
+   (get-in db [:rooms/membership-loading? room-id])))
+
+(re-frame/reg-event-db
+ :room/clear-membership-loading
+ (fn [db [_ room-id]]
+   (update db :rooms/membership-loading? dissoc room-id)))
+
+(re-frame/reg-event-db
+ :room/set-membership
+ (fn [db [_ room-id status]]
+   (-> db
+       (assoc-in [:rooms/membership room-id] status)
+       (update :rooms/membership-loading? dissoc room-id))))
+
+(re-frame/reg-event-fx
+ :room/fetch-membership
+ (fn [{:keys [db]} [_ room-id]]
+   (if (or (get-in db [:rooms/membership room-id])
+           (get-in db [:rooms/membership-loading? room-id]))
+     {}
+     (do
+       (go
+         (let [res (<! (main/do-with-pool! @state/!engine-pool
+                                           {:handler :fetch-room-membership
+                                            :arguments {:room-id room-id}}))]
+           (if (= (:status res) "success")
+             (re-frame/dispatch [:room/set-membership room-id (:membership res)])
+             (do
+               (js/console.warn "Membership fetch failed for" room-id "-" (:msg res))
+               (re-frame/dispatch [:room/clear-membership-loading room-id])))))
+       {:db (assoc-in db [:rooms/membership-loading? room-id] true)}))))
+
+(re-frame/reg-sub
+ :room/security
+ (fn [db [_ room-id]]
+   (get-in db [:rooms/security room-id])))
+
+(re-frame/reg-sub
+ :room/security-loading?
+ (fn [db [_ room-id]]
+   (get-in db [:rooms/security-loading? room-id])))
+
+(re-frame/reg-event-db
+ :room/clear-security-loading
+ (fn [db [_ room-id]]
+   (update db :rooms/security-loading? dissoc room-id)))
+
+(re-frame/reg-event-db
+ :room/set-security
+ (fn [db [_ room-id data]]
+   (-> db
+       (assoc-in [:rooms/security room-id] data)
+       (update :rooms/security-loading? dissoc room-id))))
+
+(re-frame/reg-event-fx
+ :room/fetch-security
+ (fn [{:keys [db]} [_ room-id]]
+   (if (or (get-in db [:rooms/security room-id])
+           (get-in db [:rooms/security-loading? room-id]))
+     {}
+     (do
+       (go
+         (let [res (<! (main/do-with-pool! @state/!engine-pool
+                                           {:handler :fetch-room-security
+                                            :arguments {:room-id room-id}}))
+               ]
+           (if (= (:status res) "success")
+             (re-frame/dispatch [:room/set-security room-id {:is-public? (:is-public res)
+                                                             :is-encrypted? (:is-encrypted res)}])
+             (do
+               (js/console.warn "Security fetch failed for" room-id "-" (:msg res))
+               (re-frame/dispatch [:room/clear-security-loading room-id])))))
+       {:db (assoc-in db [:rooms/security-loading? room-id] true)}))))
+
 (re-frame/reg-sub
  :room/is-call?
  (fn [db [_ room-id]]
    (get-in db [:room-previews room-id :is-call?])))
 
-(defn room-item [initial-props]
+(defui room-item [initial-props]
   (r/with-let [!attempted? (atom false)]
     (fn [{:keys [id name indent is-space? is-closed? is-dm? has-call?
                  active-room unread? highlight? notif-count
@@ -125,22 +325,32 @@
             is-call? @(re-frame/subscribe [:room/is-call? id])
             profile  @(re-frame/subscribe [:sdk/profile])
             my-id    (:user-id profile)
-            needs-members?  (or (and is-dm? (not avatar-url)) has-call?)
-            members-map     @(re-frame/subscribe [:room/members-map id])
-            members-loading? @(re-frame/subscribe [:room/members-loading? id])]
+            needs-members?   (or (and is-dm? (not avatar-url)) has-call?)
+            members-map      @(re-frame/subscribe [:room/members-map id])
+            members-loading? @(re-frame/subscribe [:room/members-loading? id])
+            membership   @(re-frame/subscribe [:room/membership id])
+            mem-loading? @(re-frame/subscribe [:room/membership-loading? id])
+            security     @(re-frame/subscribe [:room/security id])
+            sec-loading? @(re-frame/subscribe [:room/security-loading? id])]
 
+        (when (and id (not security) (not sec-loading?))
+          (re-frame/dispatch [:room/fetch-security id]))
         (when (and id needs-members? (not members-loading?) (empty? members-map) (not @!attempted?))
           (reset! !attempted? true)
           (re-frame/dispatch [:room/fetch-members id]))
+
+        (when (and id (not membership) (not mem-loading?))
+          (re-frame/dispatch [:room/fetch-membership id]))
 
         (let [other-user   (when (and is-dm? (seq members-map))
                              (->> (vals members-map)
                                   (remove #(= (:user-id %) my-id))
                                   first))
               final-avatar (or avatar-url (:avatar-url other-user))
-              final-name   (if (and is-dm? other-user (= name "Loading..."))
+              final-name   (if (when is-dm? other-user)
                              (:display-name other-user)
                              name)
+              final-membership membership
 
               resolved-participants (map (fn [p]
                                            (let [p-id (or (:userId p) p)
@@ -161,110 +371,37 @@
                                     (fn []
                                       (re-frame/dispatch [:rooms/toggle-drawer id]))
                                     150))
-                      :on-context-menu #(open-menu-fn % (.-clientX %) (.-clientY %))}
-                 (long-press-props #(open-menu-fn nil %1 %2)))
+                      :on-context-menu #(open-menu-fn % (.-clientX %) (.-clientY %) final-membership)}
+                     (long-press-props #(open-menu-fn nil %1 %2 final-membership)))
               [:span.drawer-arrow (if is-closed? [icons/chevron-down] [icons/chevron-down])]
               [:span.drawer-name (str/upper-case final-name)]]
              [:div.room-item
               (merge {:style {:padding-left (str indent "px")}
                       :class [(when active? "active")
-                          (when unread? "has-unread")
+                              (when unread? "has-unread")
                               (when highlight? "has-highlight")]
                       :on-pointer-up #(do
-                                    (.preventDefault %)
-                                    (.stopPropagation %))
+                                        (.preventDefault %)
+                                        (.stopPropagation %))
                       :on-click #(do
                                    (.preventDefault %)
                                    (.stopPropagation %)
                                    (when-let [native-event (.-nativeEvent %)]
                                      (.stopImmediatePropagation native-event))
                                    (re-frame/dispatch [:rooms/select id]))
-                      :on-context-menu #(open-menu-fn % (.-clientX %) (.-clientY %))}
-                     (long-press-props #(open-menu-fn nil %1 %2)))
+                      :on-context-menu #(open-menu-fn % (.-clientX %) (.-clientY %) final-membership)}
+                     (long-press-props #(open-menu-fn nil %1 %2 final-membership)))
               (cond
                 is-call?
                 [icons/speaker {:has-call? has-call?}]
                 (and (= active-filter "people") (or is-dm? (not space-id)))
                 [avatar {:id id :name final-name :url final-avatar :size 24 :status :online}]
                 :else
-                [icons/hash])
-              [:span.room-name final-name]
-              [:div.room-item-right
-               [:div.room-hover-actions
-                (when is-call?
-                  [:div.action-icon.chat-action
-                   {:title
-                    (tr [:navigation.room-list/view-chat])
-                    :on-click (fn [e]
-                                (.stopPropagation e)
-                                (re-frame/dispatch [:rooms/select id {:force-lobby? true :focus-override :timeline}]))}
-                   [icons/chat-bubble]])
-                [:div.action-icon.settings-action
-                 {:title (tr [:navigation.room-list/room-settings])
-                  :on-click (fn [e]
-                              (.stopPropagation e)
-                              (re-frame/dispatch [:rooms/open-settings id]))}
-                 [icons/settings {:animate :spin}]]]
-               (when has-call?
-                 [:div.call-participants.hide-on-desktop
-                  (for [p resolved-participants]
-                    ^{:key (str "mobile-call-" (:id p))}
-                    [:div.participant-avatar-ring
-                     [avatar {:id (:id p) :url (:avatar-url p) :size 20}]])])
-               (when unread?
-                 [:div.notification-badge
-                  {:class (when highlight? "highlight")}
-                  (if (> notif-count 99) "99+" notif-count)])]])
-           (when (and has-call? (not is-closed?))
-             [:div.desktop-call-list.hide-on-mobile
-              {:style {:padding-left (str (+ indent 24) "px")}}
-              (for [p resolved-participants]
-                ^{:key (str "desktop-call-" (:id p))}
-                [:div.call-participant-item
-                 {:on-click (fn [e]
-                              (.stopPropagation e)
-                              (re-frame/dispatch [:ui/open-user-profile (:id p)]))}
-                 [avatar {:id (:id p) :name (:name p) :url (:avatar-url p) :size 20}]
-                 [:span.participant-name (:name p)]])])]
-          [:div.room-container
-           (if is-space?
-             [:div.room-drawer-header
-              (merge {:style {:padding-left (str indent "px")}
-                      :class (when is-closed? "collapsed")
-                      :on-click #(do
-                                   (.preventDefault %)
-                                   (.stopPropagation %)
-                                   (js/setTimeout
-                                    (fn []
-                                      (re-frame/dispatch [:rooms/toggle-drawer id]))
-                                    150))
-                      :on-context-menu #(open-menu-fn % (.-clientX %) (.-clientY %))}
-                     (long-press-props #(open-menu-fn nil %1 %2)))
-              [:span.drawer-arrow (if is-closed? [icons/chevron-down] [icons/chevron-down])]
-              [:span.drawer-name (str/upper-case final-name)]]
-             [:div.room-item
-          (merge {:style {:padding-left (str indent "px")}
-                  :class [(when active? "active")
-                          (when unread? "has-unread")
-                          (when highlight? "has-highlight")]
-                  :on-pointer-up #(do
-                                    (.preventDefault %)
-                                    (.stopPropagation %))
-                  :on-click #(do
-                               (.preventDefault %)
-                               (.stopPropagation %)
-                               (when-let [native-event (.-nativeEvent %)]
-                                 (.stopImmediatePropagation native-event))
-                               (re-frame/dispatch [:rooms/select id]))
-                  :on-context-menu #(open-menu-fn % (.-clientX %) (.-clientY %))}
-                 (long-press-props #(open-menu-fn nil %1 %2)))
-              (cond
-                is-call?
-                [icons/speaker {:has-call? has-call?}]
-                (and (= active-filter "people") (or is-dm? (not space-id)))
-                [avatar {:id id :name final-name :url final-avatar :size 24 :status :online}]
-                :else
-                [icons/hash])
+                [icons/dynamic-room-hash {:is-public? (:is-public? security)
+                                    :is-encrypted? (:is-encrypted? security)
+                                    :is-joinable? (not= final-membership "joined")}]
+                )
+
               [:span.room-name final-name]
               [:div.room-item-right
                [:div.room-hover-actions
@@ -304,6 +441,7 @@
                  [avatar {:id (:id p) :name (:name p) :url (:avatar-url p) :size 20}]
                  [:span.participant-name (:name p)]])])])))))
 
+
 (defn render-room-item [tr client rooms active-space active-room closed-drawers active-filter]
   (fn [_ raw-room]
     (let [r           (if (map? raw-room) raw-room (js->clj raw-room :keywordize-keys true))
@@ -319,12 +457,12 @@
                           (:activeRoomCallParticipants r)
                           (:active_room_call_participants r)
                           [])
-          open-menu   (fn [e mx my]
+          open-menu   (fn [e mx my membership]
                         (when e (.preventDefault e) (.stopPropagation e))
                         (re-frame/dispatch
                          [:context-menu/open
                           {:x mx :y my
-                           :items (build-room-actions tr id room-name space? dm?)}]))]
+                           :items (build-room-actions tr id room-name space? dm? :list membership)}]))]
       (r/as-element
        [room-item {:tr tr
                    :id id
@@ -343,5 +481,3 @@
                    :call-participants call-parts
                    :avatar-url url
                    :open-menu-fn open-menu}]))))
-
-
