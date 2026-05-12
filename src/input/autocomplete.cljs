@@ -3,6 +3,7 @@
    [re-frame.core :as re-frame]
    [taoensso.timbre :as log]
    [clojure.string :as str]
+   [utils.macros :refer [defui]]
    [utils.images :refer [mxc->url mxc-image]]
    [utils.global-ui :refer [avatar handle-list-navigation selectable-list]]
 
@@ -76,7 +77,7 @@
 
 (defonce !active-command (atom nil))
 
-(defn handle-suggestion-keydown [^js props type]
+(defui handle-suggestion-keydown [^js props type]
   (let [e       (.-event props)
         room-id @(re-frame/subscribe [:rooms/active-id])
         state   @(re-frame/subscribe [:suggestion/state])
@@ -92,7 +93,7 @@
          (let [selected-item (if (= type :emoji) (second raw-item) raw-item)]
            (cmd #js {:props selected-item})))))))
 
-(defn emoji-suggestion-options []
+(defui emoji-suggestion-options []
   #js {:char ":"
        :command (fn [^js props]
                   (let [ed (.-editor props)
@@ -117,7 +118,7 @@
                                 (reset! !active-command nil)
                                 (re-frame/dispatch [:suggestion/close-menu]))})})
 
-(defn user-mention-options [on-start on-exit]
+(defui user-mention-options [on-start on-exit]
   #js {:char "@"
        :command (fn [^js props]
                   (let [ed (.-editor props)
@@ -146,7 +147,7 @@
                                 (when on-exit (on-exit))
                                 (re-frame/dispatch [:suggestion/close-menu]))})})
 
-(defn suggestion-menu []
+(defui suggestion-menu []
   (let [{:keys [active? type rect index] :as state} @(re-frame/subscribe [:suggestion/state])
         room-id @(re-frame/subscribe [:rooms/active-id])
         emojis  @(re-frame/subscribe [:emoji/filtered-suggestions])
