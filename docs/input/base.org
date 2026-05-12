@@ -96,7 +96,7 @@ Important to note we must do this here as this is when the browser is loading th
 buffer of data so we can actually check the data associated and pass it on.
 #+begin_src clojurescript :tangle ../../src/input/base.cljs
 
-(defn extract-metadata [raw-file]
+(defui extract-metadata [raw-file]
   (p/create
    (fn [resolve _]
      (let [mime      (.-type raw-file)
@@ -300,7 +300,7 @@ This is the editor used for editing to be specific. Outside that it likely won't
 be used.
 
 #+begin_src clojurescript :tangle ../../src/input/base.cljs
-(defn inline-editor [item active-id]
+(defui inline-editor [item active-id]
   (r/with-let [!editor (r/atom nil)]
     (fn [item active-id]
       (let [m-content    (get-in item [:content :inner :content])
