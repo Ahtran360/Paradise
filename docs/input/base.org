@@ -96,7 +96,7 @@ Important to note we must do this here as this is when the browser is loading th
 buffer of data so we can actually check the data associated and pass it on.
 #+begin_src clojurescript :tangle ../../src/input/base.cljs
 
-(defui extract-metadata [raw-file]
+(defn extract-metadata [raw-file]
   (p/create
    (fn [resolve _]
      (let [mime      (.-type raw-file)
