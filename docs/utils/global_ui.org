@@ -15,6 +15,7 @@ them collected together
    [taoensso.timbre :as log]
    [clojure.string :as str]
    [reagent.core :as r]
+   [utils.macros :refer [defui]]
    [overlays.base :refer [modal-component popover-component]]
    [utils.svg :as icons]
    [utils.images :refer [mxc-image]]
