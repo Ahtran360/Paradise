@@ -17,9 +17,13 @@ So this is where we'll start allowing that logic to live.
   (:require
    [clojure.string :as str]
    [re-frame.core :as re-frame]
+   [cljs-workers.core :as main]
    [reagent.core :as r]
+   [client.state :as state]
+   [cljs.core.async :refer [go <!]]
    [taoensso.timbre :as log]
    [utils.svg :as icons]
+   [utils.macros :refer [defui]]
    [utils.global-ui :refer [avatar long-press-props]]))
 #+end_src
 
