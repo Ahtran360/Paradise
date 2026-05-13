@@ -285,10 +285,12 @@ events.
                   (re-frame/dispatch [hydrate-event final-val])))))
    {}))
 
-(re-frame/reg-fx
+
+(re-frame/reg-event-fx
  :settings/save
- (fn [[k v]]
-   (store/set-setting! k v)))
+ (fn [_ [_ idb-key new-val]]
+   (store/set-setting! idb-key new-val)
+   {}))
 
 (re-frame/reg-event-fx
  :app/load-settings-by-stage
