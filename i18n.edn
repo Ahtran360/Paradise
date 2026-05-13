@@ -116,13 +116,21 @@
   :navigation
   {:actions
    {:mark-read "Mark as Read"
+    :notification-settings "Notification Settings"
+    :create-room "Create Room"
+    :create-space "Create Space"
+    :duplicate-room "Duplicate Room"
+    :delete-space "Delete Space"
+    :delete-room "Delete Room"
     :leave-space "Leave Space"
+    :settings "Settings"
     :leave-room   "Leave Room"
     :join-space "Join Space"
     :join-room "Join Room"
     :knock-room "Knock Room"
     :reject-invite "Reject Invite"
-    :invite-user "Invite a user"
+    :invite-here "Invite Here"
+    :invite-to "Invite To"
     :copy-link   "Copy Link"
     :invite      "Invite"}
    :room-list
