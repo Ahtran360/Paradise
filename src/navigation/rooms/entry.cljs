@@ -16,12 +16,7 @@
         is-invited? (= membership "invited")
         is-knocked? (= membership "knocked")]
     (remove nil?
-            [{:id "copy-link"
-              :label (tr [:navigation.actions/copy-link])
-              :icon [icons/link]
-              :action #(re-frame/dispatch [:rooms/copy-link room-id])}
-
-             (when is-invited?
+            [(when is-invited?
                {:id "join"
                 :label (if is-space? (tr [:navigation.actions/join-space]) (tr [:navigation.actions/join-room]))
                 :icon [icons/door-open]
@@ -48,15 +43,20 @@
                 :action #(re-frame/dispatch [:rooms/mark-read room-id])})
 
              (when is-joined?
-               {:id "invite"
-                :label (tr [:navigation.actions/invite-user])
-                :icon [icons/members-plus]
-                :action #(re-frame/dispatch [:ui/open-modal :invite-user
+               {:id "notifications"
+                :label (tr [:navigation.actions/notification-settings])
+                :icon [icons/bell]
+                :action #(re-frame/dispatch [:ui/open-modal :notification-settings {:room-id room-id}])})
 
+             (when is-joined?
+               {:id "invite"
+                :label (tr (if is-dm? [:navigation.actions/invite-to] [:navigation.actions/invite-here]))
+                :icon [icons/members-plus]
+                :action #(re-frame/dispatch [:ui/open-modal (if is-dm? :invite-room :invite-user)
                                              {:backdrop-props {:class "lightbox-backdrop"}
                                               :window-props   {:style {:background "transparent"
                                                                        :box-shadow "none"}}
-                                              :room-id room-id}])})
+                                              :target-room-id room-id}])})
 
              (when (and is-joined? (not is-dm?) (= context :header))
                {:id "call"
@@ -88,12 +88,72 @@
                 :icon [icons/members]
                 :action #(re-frame/dispatch [:container/set-side-panel :members])})
 
+             (when (and is-joined?
+                        ;;perm check
+                        )
+               {:id "create-room"
+                :icon [icons/plus-circle]
+                :label (tr [:navigation.actions/create-room])
+                :icon [icons/plus-circle]
+                :action #(re-frame/dispatch
+                          [:ui/open-modal :create-room
+                           {:backdrop-props {:class "lightbox-backdrop"}
+                            :window-props   {:class "settings-window"
+                                             :style {:display "flex"
+                                                     :flex-direction "column"
+                                                     :align-items "center"
+                                                     :justify-content "center"
+                                                     :gap "16px"}}
+                            :target-space-id room-id}])})
+
+             (when (and is-joined?
+                        ;;perm check
+                        )
+               {:id "create-space"
+                :label (tr [:navigation.actions/create-space])
+                :icon [icons/plus-circle]
+                :action #(re-frame/dispatch [:ui/open-modal :create-space
+                                             {:backdrop-props {:class "lightbox-backdrop"}
+                                              :window-props   {:class "settings-window"
+                                                               :style {:display "flex"
+                                                                       :flex-direction "column"
+                                                                       :align-items "center"
+                                                                       :justify-content "center"
+                                                                       :gap "16px"}}
+                                              :parent-space-id room-id}])})
+
+             (when is-joined?
+               {:id "settings"
+                :label (tr [:navigation.actions/settings])
+                :icon [icons/settings]
+                :action #(re-frame/dispatch [:ui/open-modal :room-settings {:room-id room-id}])})
+
+             (when (and is-joined? (not is-dm?))
+               {:id "duplicate"
+                :label (tr [:navigation.actions/duplicate-room])
+                :icon [icons/copy]
+                :action #(re-frame/dispatch [:ui/open-modal :duplicate-room {:room-id room-id}])})
+
              (when (or is-joined? is-knocked?)
                {:id "leave"
                 :label (if is-space? (tr [:navigation.actions/leave-space]) (tr [:navigation.actions/leave-room]))
                 :icon [icons/leave]
                 :class-name "danger"
-                :action #(re-frame/dispatch [:rooms/leave room-id])})])))
+                :action #(re-frame/dispatch [:rooms/leave room-id])})
+
+             (when (and is-joined? (not is-dm?))
+               {:id "delete"
+                :label (if is-space? (tr [:navigation.actions/delete-space]) (tr [:navigation.actions/delete-room]))
+                :icon [icons/trash]
+                :class-name "danger"
+                :action #(re-frame/dispatch [:ui/open-modal :confirm-delete {:room-id room-id}])})
+
+             {:id "copy-link"
+              :label (tr [:navigation.actions/copy-link])
+              :icon [icons/link]
+              :action #(re-frame/dispatch [:rooms/copy-link room-id])
+             }
+             ])))
 
 (defui media-button [active? icon-on icon-off title on-click color-active color-inactive]
   [:button.media-btn
@@ -172,6 +232,7 @@
    {:db (assoc-in db [:rooms/joining? room-id] true)}))
 
 
+
 (re-frame/reg-event-fx
  :rooms/leave
  (fn [{:keys [db]} [_ room-id]]
@@ -216,6 +277,7 @@
                        {:handler :knock-room
                         :arguments {:room-id room-id}})
    {:db (assoc-in db [:rooms/loading-state room-id] :knocking)}))
+
 
 (re-frame/reg-event-fx
  :rooms/copy-link
