@@ -54,6 +54,23 @@ not (among many other indicators).
    {}))
 
 (re-frame/reg-event-db
+ :space/hydrate-hierarchies
+ (fn [db [_ raw-cache]]
+   (let [parsed-cache (try
+                        (if (string? raw-cache)
+                          (reader/read-string raw-cache)
+                          {})
+                        (catch :default _ {}))]
+     (assoc db :space-hierarchies-cache parsed-cache))))
+
+(re-frame/reg-event-fx
+ :space/save-hierarchy-cache
+ (fn [{:keys [db]} [_ user-id space-id fresh-rooms]]
+   (let [updated-cache (assoc-in (:space-hierarchies-cache db {}) [user-id space-id] fresh-rooms)]
+     (store/set-setting! "space_hierarchies" (pr-str updated-cache))
+     {:db (assoc db :space-hierarchies-cache updated-cache)})))
+
+(re-frame/reg-event-db
  :space/process-hierarchy
  (fn [db [_ root-space-id rooms]]
    (let [hierarchy-orders
