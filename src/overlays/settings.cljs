@@ -186,7 +186,9 @@
    "show_previews"         {:event :push/hydrate-previews-setting :default true      :stage  :login }
    "theme"                 {:event :ui/hydrate-theme              :default :default  :stage  :boot  }
    "disabled_plugin_urls"  {:event :plugins/hydrate-disabled-urls :default []        :stage  :boot  }
-   "plugin_urls"           {:event :plugins/hydrate-urls          :default []        :stage  :boot  }})
+   "plugin_urls"           {:event :plugins/hydrate-urls          :default []        :stage  :boot  }
+   "space_hierarchies"    {:event :space/hydrate-hierarchies     :default {}        :stage  :login}
+   })
 
 
 (re-frame/reg-event-fx
@@ -198,10 +200,12 @@
                   (re-frame/dispatch [hydrate-event final-val])))))
    {}))
 
-(re-frame/reg-fx
+
+(re-frame/reg-event-fx
  :settings/save
- (fn [[k v]]
-   (store/set-setting! k v)))
+ (fn [_ [_ idb-key new-val]]
+   (store/set-setting! idb-key new-val)
+   {}))
 
 (re-frame/reg-event-fx
  :app/load-settings-by-stage
