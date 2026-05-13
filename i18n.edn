@@ -110,8 +110,13 @@
    {:no-results "No matches found"}}
   :invites {
      :loading "Loading..."
-     :empty "No users found."
-     :placeholder "Search or enter Matrix ID..."
+     :empty-users "No users found."
+     :empty-rooms "No spaces or rooms found."
+     :add-by-alias-rooms "Add room/space by ID/Alias"
+     :space "Space"
+     :room "Room"
+     :placeholder-users "Search or enter Matrix ID..."
+     :placeholder-rooms "Search for a Space or Room..."
    }
   :navigation
   {:actions
