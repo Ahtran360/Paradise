@@ -108,14 +108,29 @@ OPFS is unideal for the main thread to use and we don't really
 
 (defn get-setting [key]
   (p/let [db (open-settings-db)]
-    (if-not db nil
+    (if-not db (p/resolved nil)
       (p/create
        (fn [resolve _]
-         (let [tx (try (.transaction db #js ["settings"] "readonly") (catch :default _ nil))]
-           (if-not tx (resolve nil)
-             (let [get-req (.get (.objectStore tx "settings") key)]
-               (set! (.-onsuccess get-req) #(resolve (.. % -target -result)))
-               (set! (.-onerror get-req) #(resolve nil))))))))))
+         (let [tx    (.transaction db #js ["settings"] "readonly")
+               store (.objectStore tx "settings")
+               req   (.get store key)]
+           (set! (.-onsuccess req)
+                 #(let [raw-val (.-result req)]
+                    (resolve
+                     (cond
+                       (nil? raw-val) nil
+                       (string? raw-val)
+                       (let [first-char (subs raw-val 0 1)]
+                         (if (#{"{" "[" "#" ":" "\""} first-char)
+                           (try
+                             (reader/read-string raw-val)
+                             (catch :default e
+                               (js/console.error "EDN Parse Error for key:" key "val:" raw-val e)
+                               raw-val))
+                           raw-val))
+                       :else
+                       (js->clj raw-val :keywordize-keys true)))))
+           (set! (.-onerror req) #(resolve nil))))))))
 
 (defn set-setting! [key value]
   (p/let [db (open-settings-db)]
@@ -124,7 +139,9 @@ OPFS is unideal for the main thread to use and we don't really
        (fn [resolve _]
          (let [tx      (.transaction db #js ["settings"] "readwrite")
                store   (.objectStore tx "settings")
-               put-req (if (some? value) (.put store value key) (.delete store key))]
+               put-req (if (some? value)
+                         (.put store (pr-str value) key)
+                         (.delete store key))]
            (set! (.-onsuccess put-req) #(resolve true))
            (set! (.-onerror put-req) #(resolve false))))))))
 #+end_src
