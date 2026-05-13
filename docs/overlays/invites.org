@@ -50,7 +50,7 @@ populated based on DMs to give the user a familiar UI.
          [:input.form-input.quick-switcher-input
           {:type "text"
            :auto-focus true
-           :placeholder (tr [:invites/placeholder])
+           :placeholder (tr [:invites/placeholder-users])
            :value @query
            :on-change (fn [e]
                         (reset! query (.. e -target -value))
@@ -69,7 +69,7 @@ populated based on DMs to give the user a familiar UI.
           [selectable-list
            {:items          final-items
             :selected-index @selected-index
-            :empty-text     (tr [:invites/empty])
+            :empty-text     (tr [:invites/empty-users])
             :item-class     "quick-switcher-item"
             :key-fn         #(or (:user-id %) (:id %) (:roomId %))
             :on-highlight   #(reset! selected-index %)

@@ -31,7 +31,7 @@
          [:input.form-input.quick-switcher-input
           {:type "text"
            :auto-focus true
-           :placeholder (tr [:invites/placeholder])
+           :placeholder (tr [:invites/placeholder-users])
            :value @query
            :on-change (fn [e]
                         (reset! query (.. e -target -value))
