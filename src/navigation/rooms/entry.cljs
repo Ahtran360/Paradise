@@ -94,7 +94,6 @@
                {:id "create-room"
                 :icon [icons/plus-circle]
                 :label (tr [:navigation.actions/create-room])
-                :icon [icons/plus-circle]
                 :action #(re-frame/dispatch
                           [:ui/open-modal :create-room
                            {:backdrop-props {:class "lightbox-backdrop"}
