@@ -255,13 +255,13 @@
                        (try
                          (if-let [room (.getRoom client room-id)]
                            (let [mem-enum (.membership room)
-                                 status (cond
-                                          (= mem-enum 0) "invited"
-                                          (= mem-enum 1) "joined"
-                                          (= mem-enum 2) "left"
-                                          (= mem-enum 3) "knocked"
-                                          (= mem-enum 4) "banned"
-                                          :else "joined")]
+                                 status (case mem-enum
+                                          0 "invited"
+                                          1 "joined"
+                                          2 "left"
+                                          3 "knocked"
+                                          4 "banned"
+                                          "unknown")]
                              {:status "success" :room-id room-id :membership status})
                            {:status "error" :msg "Room not found in local cache"})
                          (catch :default e
