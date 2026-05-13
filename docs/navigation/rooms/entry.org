@@ -37,6 +37,7 @@ Eventually I'd like to swap these out with SVGs too, but for now they can stay.
         is-invited? (= membership "invited")
         is-knocked? (= membership "knocked")]
     (remove nil?
+            [(when is-invited?
                {:id "join"
                 :label (if is-space? (tr [:navigation.actions/join-space]) (tr [:navigation.actions/join-room]))
                 :icon [icons/door-open]
