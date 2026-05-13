@@ -37,12 +37,10 @@
 
 (rf/reg-event-fx
  :plugins/hydrate-urls
- (fn [{:keys [db]} [_ raw-urls]]
-   (let [urls (if (js/Array.isArray raw-urls)
-                (vec (js->clj raw-urls))
-                [])]
-     {:db (assoc db :plugins/installed-urls urls)
-      :dispatch-n (mapv (fn [url] [:plugins/fetch-and-boot url]) urls)})))
+ (fn [{:keys [db]} [_ urls]]
+   (let [valid-urls (if (coll? urls) (vec urls) [])]
+     {:db         (assoc db :plugins/installed-urls valid-urls)
+      :dispatch-n (mapv (fn [url] [:plugins/fetch-and-boot url]) valid-urls)})))
 
 (rf/reg-sub
  :plugins/disabled-urls
@@ -105,11 +103,9 @@
 
 (rf/reg-event-db
  :plugins/hydrate-disabled-urls
- (fn [db [_ raw-urls]]
-   (let [urls (if (js/Array.isArray raw-urls)
-                (set (js->clj raw-urls))
-                #{})]
-     (assoc db :plugins/disabled-urls urls))))
+ (fn [db [_ urls]]
+   (let [valid-urls (if (coll? urls) (set urls) #{})]
+     (assoc db :plugins/disabled-urls valid-urls))))
 
 (rf/reg-event-fx
  :plugins/fetch-and-boot
