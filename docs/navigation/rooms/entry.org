@@ -37,12 +37,6 @@ Eventually I'd like to swap these out with SVGs too, but for now they can stay.
         is-invited? (= membership "invited")
         is-knocked? (= membership "knocked")]
     (remove nil?
-            [{:id "copy-link"
-              :label (tr [:navigation.actions/copy-link])
-              :icon [icons/link]
-              :action #(re-frame/dispatch [:rooms/copy-link room-id])}
-
-             (when is-invited?
                {:id "join"
                 :label (if is-space? (tr [:navigation.actions/join-space]) (tr [:navigation.actions/join-room]))
                 :icon [icons/door-open]
@@ -114,7 +108,20 @@ Eventually I'd like to swap these out with SVGs too, but for now they can stay.
                 :label (if is-space? (tr [:navigation.actions/leave-space]) (tr [:navigation.actions/leave-room]))
                 :icon [icons/leave]
                 :class-name "danger"
-                :action #(re-frame/dispatch [:rooms/leave room-id])})])))
+                :action #(re-frame/dispatch [:rooms/leave room-id])})
+             (when (and is-joined? (not is-dm?))
+               {:id "delete"
+                :label (if is-space? (tr [:navigation.actions/delete-space]) (tr [:navigation.actions/delete-room]))
+                :icon [icons/trash]
+                :class-name "danger"
+                :action #(re-frame/dispatch [:ui/open-modal :confirm-delete {:room-id room-id}])})
+
+             {:id "copy-link"
+              :label (tr [:navigation.actions/copy-link])
+              :icon [icons/link]
+              :action #(re-frame/dispatch [:rooms/copy-link room-id])
+             }
+             ])))
 #+end_src
 
 
