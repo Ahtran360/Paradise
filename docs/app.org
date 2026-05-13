@@ -282,8 +282,8 @@ This at least begins starting that off by providing some useful enough defaults.
                                     :matrix  "matrix.css"
                                     :retro   "retro.css"
                                     "app.css")))]
-     {:db (assoc db :ui/current-theme theme-str)
-      :settings/save ["theme" theme-str]
+     {:db             (assoc db :ui/current-theme theme-str)
+      :dispatch       [:settings/save "theme" theme-str]
       :ui/hotswap-css href})))
 
 #+end_src
