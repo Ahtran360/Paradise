@@ -168,8 +168,8 @@
                                    [:div.invite-user-info
                                     [:span.name name]
                                     [:span.sub-name (if is-space?
-                                                      (tr [:invites.room/space])
-                                                      (tr [:invites.room/room]))]]])))}]]]))))
+                                                      (tr [:invites/space])
+                                                      (tr [:invites/room]))]]])))}]]]))))
 
 (defmethod modal-component :invite-user [_]
   invite-menu-content)
