@@ -1,5 +1,6 @@
 (ns client.session-store
   (:require [promesa.core :as p]
+            [cljs.reader :as reader]
             [taoensso.timbre :as log]
             ["ffi-bindings" :as sdk]))
 
