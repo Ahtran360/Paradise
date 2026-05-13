@@ -44,10 +44,10 @@
  (fn [db _]
    (:push/previews-enabled? db true)))
 
-(re-frame/reg-event-fx
+(re-frame/reg-event-db
  :push/hydrate-previews-setting
- (fn [{:keys [db]} [_ enabled?]]
-   {:db (assoc db :push/previews-enabled? (if (nil? enabled?) true enabled?))}))
+ (fn [db [_ enabled?]]
+   (assoc db :push/previews-enabled? enabled?)))
 
 (re-frame/reg-event-fx
  :push/toggle-previews
