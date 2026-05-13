@@ -37,6 +37,24 @@
    {}))
 
 (re-frame/reg-event-db
+ :space/hydrate-hierarchies
+ (fn [db [_ raw-cache]]
+   (let [parsed-cache (try
+                        (if (string? raw-cache)
+                          (reader/read-string raw-cache)
+                          {})
+                        (catch :default _ {}))]
+     (assoc db :space-hierarchies-cache parsed-cache))))
+
+(re-frame/reg-event-fx
+ :space/save-hierarchy-cache
+ (fn [{:keys [db]} [_ user-id space-id fresh-rooms]]
+   (let [updated-cache (assoc-in (:space-hierarchies-cache db {}) [user-id space-id] fresh-rooms)]
+     (store/set-setting! "space_hierarchies" (pr-str updated-cache))
+     {:db (assoc db :space-hierarchies-cache updated-cache)})))
+
+
+(re-frame/reg-event-db
  :space/process-hierarchy
  (fn [db [_ root-space-id rooms]]
    (let [hierarchy-orders
@@ -58,17 +76,31 @@
           {} rooms)]
      (update db :space-orders merge hierarchy-orders))))
 
+
 (re-frame/reg-event-fx
  :sdk/fetch-space-hierarchy
- (fn [_ [_ space-id]]
-   (go
-     (let [pool @state/!engine-pool
-           res  (<! (main/do-with-pool! pool {:handler :fetch-space-hierarchy
-                                              :arguments {:space-id space-id}}))]
-       (when (= (:status res) "success")
-         (re-frame/dispatch [:space/process-hierarchy space-id (:rooms res)])
-         (re-frame/dispatch [:rooms/cache-hierarchy-previews (:rooms res)]))))
-   {}))
+ (fn [{:keys [db]} [_ space-id]]
+   (let [current-user       (:active-user-id db)
+         cached-data        (get-in db [:space-hierarchies-cache current-user space-id])
+         valid-cache?       (coll? cached-data)
+         initial-dispatches (when (and valid-cache? (seq cached-data))
+                              [[:space/process-hierarchy space-id cached-data]
+                               [:rooms/cache-hierarchy-previews cached-data]])]
+     (go
+       (let [pool @state/!engine-pool
+             res  (<! (main/do-with-pool! pool {:handler :fetch-space-hierarchy
+                                                :arguments {:space-id space-id}}))]
+         (when (= (:status res) "success")
+           (let [fresh-rooms (:rooms res)]
+             (re-frame/dispatch [:space/save-hierarchy-cache current-user space-id fresh-rooms])
+             (re-frame/dispatch [:space/process-hierarchy space-id fresh-rooms])
+             (re-frame/dispatch [:rooms/cache-hierarchy-previews fresh-rooms])))))
+     (if initial-dispatches
+       {:dispatch-n initial-dispatches}
+       {}))))
+
+
+
 
 (re-frame/reg-event-db
  :rooms/cache-hierarchy-previews
