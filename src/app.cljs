@@ -182,6 +182,8 @@
  (fn [{:keys [db]} [_ theme-val]]
    {:dispatch [:ui/switch-theme theme-val]}))
 
+
+
 (re-frame/reg-sub
  :ui/current-theme
  (fn [db _]
@@ -217,8 +219,8 @@
                                     :matrix  "matrix.css"
                                     :retro   "retro.css"
                                     "app.css")))]
-     {:db (assoc db :ui/current-theme theme-str)
-      :settings/save ["theme" theme-str]
+     {:db             (assoc db :ui/current-theme theme-str)
+      :dispatch       [:settings/save "theme" theme-str]
       :ui/hotswap-css href})))
 
 
