@@ -497,6 +497,23 @@
       [:svg {:x "14" :y "14" :width "10" :height "10" :viewBox "0 0 24 24"}
        plus-shapes]])))
 
+(def plus-circle-shapes
+  [:<>
+   [:circle {:cx "12" :cy "12" :r "10"}]
+   [:line {:x1 "12" :y1 "8" :x2 "12" :y2 "16"}]
+   [:line {:x1 "8" :y1 "12" :x2 "16" :y2 "12"}]])
+
+(defn plus-circle [props]
+  (build-icon-hiccup props plus-circle-shapes))
+
+(def bell-shapes
+  [:<>
+   [:path {:d "M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"}]
+   [:path {:d "M10.3 21a1.94 1.94 0 0 0 3.4 0"}]])
+
+(defn bell [props]
+  (build-icon-hiccup props bell-shapes))
+
 (defn dynamic-room-hash [{:keys [is-public? is-encrypted? is-joinable?] :as props}]
   (let [clean-props (dissoc props :is-public? :is-encrypted? :is-joinable?)]
     (composite-icon
