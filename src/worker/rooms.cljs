@@ -286,7 +286,7 @@
                        {:status "error" :msg "Client not initialized"}))))
 
 
-(worker/register :join-oom
+(worker/register :join-room
                 (fn [{:keys [room-id]}]
                    (go
                      (if-let [client @state/!client]
