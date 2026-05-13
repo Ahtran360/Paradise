@@ -379,6 +379,16 @@ and file structures.
        {:dispatch [:rooms/select room-id]})))
 
 (re-frame/reg-event-fx
+ :rooms/clear-active-if-matches
+ (fn [{:keys [db]} [_ room-id]]
+   (if (= (:active-room-id db) room-id)
+     (let [current-user (:active-user-id db)]
+       (store/set-setting! (str "last_room_" current-user) nil)
+       {:db (assoc db :active-room-id nil)
+        :dispatch [:sdk/cleanup-timeline room-id]})
+     {})))
+
+(re-frame/reg-event-fx
  :rooms/select
  (fn [{:keys [db]} [_ room-id opts]]
    (let [current-room-id (:active-room-id db)
