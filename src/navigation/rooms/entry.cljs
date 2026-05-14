@@ -11,7 +11,7 @@
    [utils.macros :refer [defui]]
    [utils.global-ui :refer [avatar long-press-props]]))
 
-(defn build-room-actions [tr room-id room-name is-space? is-dm? context membership]
+(defn build-room-actions [tr room-id parent-id room-name is-space? is-dm? context membership]
   (let [is-joined?  (= membership "joined")
         is-invited? (= membership "invited")
         is-knocked? (= membership "knocked")]
@@ -88,23 +88,21 @@
                 :icon [icons/members]
                 :action #(re-frame/dispatch [:container/set-side-panel :members])})
 
-             (when (and is-joined?
-                        ;;perm check
-                        )
+             (when (and is-joined?)
                {:id "create-room"
                 :icon [icons/plus-circle]
                 :label (tr [:navigation.actions/create-room])
                 :action #(re-frame/dispatch
                           [:ui/open-modal :create-room
-                           {:backdrop-props {:class "lightbox-backdrop"}
-                            :window-props   {:class "settings-window"
-                                             :style {:display "flex"
-                                                     :flex-direction "column"
-                                                     :align-items "center"
-                                                     :justify-content "center"
-                                                     :gap "16px"}}
-                            :target-space-id room-id}])})
-
+                           {:backdrop-props  {:class "lightbox-backdrop"}
+                            :window-props    {:class "settings-window"
+                                              :style {:display "flex"
+                                                      :flex-direction "column"
+                                                      :align-items "center"
+                                                      :justify-content "center"
+                                                      :gap "16px"}}
+                            :target-space-id (if is-space? room-id parent-id)}])})
+             
              (when (and is-joined?
                         ;;perm check
                         )
@@ -119,7 +117,9 @@
                                                                        :align-items "center"
                                                                        :justify-content "center"
                                                                        :gap "16px"}}
-                                              :parent-space-id room-id}])})
+
+                                              :target-space-id (if is-space? room-id parent-id)
+                                              }])})
 
              (when is-joined?
                {:id "settings"
@@ -224,7 +224,7 @@
                                         :arguments {:room-id room-id}}))]
        (if (= (:status res) "success")
          (do
-           (taoensso.timbre/info "Successfully joined room:" room-id)
+           (log/info "Successfully joined room:" room-id)
            (re-frame/dispatch [:room/set-membership room-id "joined"])
            (re-frame/dispatch [:rooms/finish-select room-id opts]))
          (log/error "Failed to join room:" (:msg res)))))
@@ -288,6 +288,34 @@
        (when (= (:status res) "success")
          (-> js/navigator .-clipboard (.writeText (:link res))))))
          {}))
+
+(re-frame/reg-event-fx
+ :rooms/create-room
+ (fn [{:keys [db]} [_ {:keys [name topic is-private? is-space? parent-space-id on-error]}]]
+   (go
+     (let [pool @state/!engine-pool
+           res  (<! (main/do-with-pool! pool {:handler :create-room
+                                              :arguments {:name name
+                                                          :topic topic
+                                                          :is-private is-private?
+                                                          :is-space is-space?}}))]
+       (if (= (:status res) "success")
+         (let [new-room-id (:room-id res)]
+           (when parent-space-id
+             (let [add-res (<! (main/do-with-pool! pool {:handler :space-add-child
+                                                         :arguments {:space-id parent-space-id
+                                                                     :child-id new-room-id}}))]
+               (when (not= (:status add-res) "success")
+                 (log/error "Created room, but failed to attach to space:" (:msg add-res)))))
+           (re-frame/dispatch [:ui/close-modal])
+           (re-frame/dispatch [:rooms/select new-room-id])
+           (when parent-space-id
+             (re-frame/dispatch [:sdk/fetch-space-hierarchy parent-space-id])))
+         (do
+           (log/error "Failed to create room/space:" (:msg res))
+           (when on-error (on-error))))))
+   {}))
+
 
 (re-frame/reg-sub
  :room/membership
@@ -510,6 +538,7 @@
           room-name   (or (:name r) "Loading...")
           space?      (or (:is-space? r) (:isSpace r))
           dm?         (or (:is-direct? r) (:isDirect r) (:is-direct r))
+          parent-id   (or (:parent-id r) (:isParent r))
           notif-count (or (:notification-count r) (:unreadNotificationsCount r) 0)
           high-count  (or (:highlight-count r) (:unreadMentionsCount r) 0)
           url         (or (:avatar r) (:avatarUrl r))
@@ -523,7 +552,7 @@
                         (re-frame/dispatch
                          [:context-menu/open
                           {:x mx :y my
-                           :items (build-room-actions tr id room-name space? dm? :list membership)}]))]
+                           :items (build-room-actions tr id parent-id room-name space? dm? :list membership)}]))]
       (r/as-element
        [room-item {:tr tr
                    :id id
