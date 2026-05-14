@@ -999,6 +999,7 @@ need out.
           room-name   (or (:name r) "Loading...")
           space?      (or (:is-space? r) (:isSpace r))
           dm?         (or (:is-direct? r) (:isDirect r) (:is-direct r))
+          parent-id   (or (:parent-id r) (:isParent r))
           notif-count (or (:notification-count r) (:unreadNotificationsCount r) 0)
           high-count  (or (:highlight-count r) (:unreadMentionsCount r) 0)
           url         (or (:avatar r) (:avatarUrl r))
@@ -1012,7 +1013,7 @@ need out.
                         (re-frame/dispatch
                          [:context-menu/open
                           {:x mx :y my
-                           :items (build-room-actions tr id room-name space? dm? :list membership)}]))]
+                           :items (build-room-actions tr id parent-id room-name space? dm? :list membership)}]))]
       (r/as-element
        [room-item {:tr tr
                    :id id
