@@ -11,6 +11,7 @@
    [overlays.notifications :as notifications]
    [overlays.settings]
    [overlays.invites]
+   [overlays.creation]
    [overlays.quick-switcher]
    [overlays.lightbox]
    [overlays.profiles]
@@ -181,8 +182,6 @@
  :ui/hydrate-theme
  (fn [{:keys [db]} [_ theme-val]]
    {:dispatch [:ui/switch-theme theme-val]}))
-
-
 
 (re-frame/reg-sub
  :ui/current-theme
