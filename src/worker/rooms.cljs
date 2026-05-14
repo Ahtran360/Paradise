@@ -286,6 +286,34 @@
                        {:status "error" :msg "Client not initialized"}))))
 
 
+(worker/register :create-room
+  (fn [{:keys [name topic is-private is-space]}]
+    (go
+      (if-let [client @state/!client]
+        (try
+          (let [visibility (if is-private
+                             (.new (.-Private (.-RoomVisibility sdk)))
+                             (.new (.-Public (.-RoomVisibility sdk))))
+                preset     (if is-private
+                             (.-PrivateChat (.-RoomPreset sdk))
+                             (.-PublicChat (.-RoomPreset sdk)))
+                topic-val  (if (str/blank? topic) js/undefined topic)
+
+                params     (.create (.-CreateRoomParameters sdk)
+                                    #js {:name        name
+                                         :topic       topic-val
+                                         :isEncrypted is-private
+                                         :isDirect    false
+                                         :visibility  visibility
+                                         :preset      preset
+                                         :isSpace     is-space})
+                room-id    (<p! (.createRoom client params))]
+            {:status "success" :room-id room-id})
+          (catch :default e
+            {:status "error" :msg (str e)}))
+        {:status "error" :msg "No active client"}))))
+
+
 (worker/register :join-room
                 (fn [{:keys [room-id]}]
                    (go
@@ -299,6 +327,7 @@
                          (catch :default e
                            {:status "error" :msg (str e)}))
                        {:status "error" :msg "No active client"}))))
+
 
 
 (worker/register :leave-room
