@@ -37,6 +37,7 @@ actual UI components themselves.
    [overlays.notifications :as notifications]
    [overlays.settings]
    [overlays.invites]
+   [overlays.creation]
    [overlays.quick-switcher]
    [overlays.lightbox]
    [overlays.profiles]
