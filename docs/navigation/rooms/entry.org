@@ -642,6 +642,34 @@ Now before we define the panel we may want to define media buttons...
        (when (= (:status res) "success")
          (-> js/navigator .-clipboard (.writeText (:link res))))))
          {}))
+
+(re-frame/reg-event-fx
+ :rooms/create-room
+ (fn [{:keys [db]} [_ {:keys [name topic is-private? is-space? parent-space-id on-error]}]]
+   (go
+     (let [pool @state/!engine-pool
+           res  (<! (main/do-with-pool! pool {:handler :create-room
+                                              :arguments {:name name
+                                                          :topic topic
+                                                          :is-private is-private?
+                                                          :is-space is-space?}}))]
+       (if (= (:status res) "success")
+         (let [new-room-id (:room-id res)]
+           (when parent-space-id
+             (let [add-res (<! (main/do-with-pool! pool {:handler :space-add-child
+                                                         :arguments {:space-id parent-space-id
+                                                                     :child-id new-room-id}}))]
+               (when (not= (:status add-res) "success")
+                 (log/error "Created room, but failed to attach to space:" (:msg add-res)))))
+           (re-frame/dispatch [:ui/close-modal])
+           (re-frame/dispatch [:rooms/select new-room-id])
+           (when parent-space-id
+             (re-frame/dispatch [:sdk/fetch-space-hierarchy parent-space-id])))
+         (do
+           (log/error "Failed to create room/space:" (:msg res))
+           (when on-error (on-error))))))
+   {}))
+
 #+end_src
 
 
