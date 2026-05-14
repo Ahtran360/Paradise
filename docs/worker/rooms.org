@@ -457,6 +457,44 @@ repeat fetches for the space rooms for now.
 
 **** Room Actions
 
+
+***** Room Creation
+
+For room creation we may need to take a peek at the FFI bindings to expose room
+type as a parameter. For now this at least provides the core functionality.
+
+#+begin_src clojurescript :tangle ../../src/worker/rooms.cljs
+(worker/register :create-room
+  (fn [{:keys [name topic is-private is-space]}]
+    (go
+      (if-let [client @state/!client]
+        (try
+          (let [visibility (if is-private
+                             (.new (.-Private (.-RoomVisibility sdk)))
+                             (.new (.-Public (.-RoomVisibility sdk))))
+                preset     (if is-private
+                             (.-PrivateChat (.-RoomPreset sdk))
+                             (.-PublicChat (.-RoomPreset sdk)))
+                topic-val  (if (str/blank? topic) js/undefined topic)
+
+                params     (.create (.-CreateRoomParameters sdk)
+                                    #js {:name        name
+                                         :topic       topic-val
+                                         :isEncrypted is-private
+                                         :isDirect    false
+                                         :visibility  visibility
+                                         :preset      preset
+                                         :isSpace     is-space})
+                room-id    (<p! (.createRoom client params))]
+            {:status "success" :room-id room-id})
+          (catch :default e
+            {:status "error" :msg (str e)}))
+        {:status "error" :msg "No active client"}))))
+
+#+end_src
+
+***** Other Functions
+
 #+begin_src clojurescript :tangle ../../src/worker/rooms.cljs
 (worker/register :join-room
                 (fn [{:keys [room-id]}]
@@ -471,6 +509,7 @@ repeat fetches for the space rooms for now.
                          (catch :default e
                            {:status "error" :msg (str e)}))
                        {:status "error" :msg "No active client"}))))
+
 
 
 (worker/register :leave-room
