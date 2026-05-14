@@ -32,7 +32,7 @@ So this is where we'll start allowing that logic to live.
 
 Eventually I'd like to swap these out with SVGs too, but for now they can stay.
 #+begin_src clojurescript :tangle ../../../src/navigation/rooms/entry.cljs
-(defn build-room-actions [tr room-id room-name is-space? is-dm? context membership]
+(defn build-room-actions [tr room-id parent-id room-name is-space? is-dm? context membership]
   (let [is-joined?  (= membership "joined")
         is-invited? (= membership "invited")
         is-knocked? (= membership "knocked")]
@@ -109,23 +109,21 @@ Eventually I'd like to swap these out with SVGs too, but for now they can stay.
                 :icon [icons/members]
                 :action #(re-frame/dispatch [:container/set-side-panel :members])})
 
-             (when (and is-joined?
-                        ;;perm check
-                        )
+             (when (and is-joined?)
                {:id "create-room"
                 :icon [icons/plus-circle]
                 :label (tr [:navigation.actions/create-room])
                 :action #(re-frame/dispatch
                           [:ui/open-modal :create-room
-                           {:backdrop-props {:class "lightbox-backdrop"}
-                            :window-props   {:class "settings-window"
-                                             :style {:display "flex"
-                                                     :flex-direction "column"
-                                                     :align-items "center"
-                                                     :justify-content "center"
-                                                     :gap "16px"}}
-                            :target-space-id room-id}])})
-
+                           {:backdrop-props  {:class "lightbox-backdrop"}
+                            :window-props    {:class "settings-window"
+                                              :style {:display "flex"
+                                                      :flex-direction "column"
+                                                      :align-items "center"
+                                                      :justify-content "center"
+                                                      :gap "16px"}}
+                            :target-space-id (if is-space? room-id parent-id)}])})
+             
              (when (and is-joined?
                         ;;perm check
                         )
@@ -140,7 +138,9 @@ Eventually I'd like to swap these out with SVGs too, but for now they can stay.
                                                                        :align-items "center"
                                                                        :justify-content "center"
                                                                        :gap "16px"}}
-                                              :parent-space-id room-id}])})
+
+                                              :target-space-id (if is-space? room-id parent-id)
+                                              }])})
 
              (when is-joined?
                {:id "settings"
@@ -578,7 +578,7 @@ Now before we define the panel we may want to define media buttons...
                                         :arguments {:room-id room-id}}))]
        (if (= (:status res) "success")
          (do
-           (taoensso.timbre/info "Successfully joined room:" room-id)
+           (log/info "Successfully joined room:" room-id)
            (re-frame/dispatch [:room/set-membership room-id "joined"])
            (re-frame/dispatch [:rooms/finish-select room-id opts]))
          (log/error "Failed to join room:" (:msg res)))))
