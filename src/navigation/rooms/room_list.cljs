@@ -76,6 +76,7 @@
            acc
            (let [item          {:id                         id
                                 :is-space?                  is-space?
+                                :parent-id                  parent-id
                                 :depth                      depth
                                 :is-unjoined?               unjoined?
                                 :activeRoomCallParticipants (when summary (safe-get summary "activeRoomCallParticipants" :activeRoomCallParticipants))
