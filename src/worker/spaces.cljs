@@ -6,7 +6,7 @@
    [client.diff-handler :refer [apply-matrix-diffs]]
    [worker.state :as state]
    [worker.rooms :refer [process-parent-queue!]]
-   [cljs.core.async :refer [<!]]
+   [cljs.core.async :refer [<! timeout]]
    [cljs.core.async.interop :refer-macros [<p!]])
   (:require-macros
    [cljs.core.async.macros :refer [go]]))
@@ -97,3 +97,41 @@
       (do (.paginate space-list)
           {:status :success})
       {:status :error :msg "Space list not booted"})))
+
+(worker/register :space-add-child
+  (fn [{:keys [space-id child-id]}]
+    (go
+      (if-let [svc @!space-service]
+        (loop [retries 1]
+          (let [result (try
+                         (<p! (.addChildToSpace svc child-id space-id))
+                         :success
+                         (catch :default e
+                           e))]
+            (if (= result :success)
+              (do
+                (log/info "Successfully attached room to space!")
+                {:status "success"})
+              (if (< retries 10)
+                (do
+                  (log/info "SDK sync not ready, retrying attachment in 300ms... (Attempt" retries "of 10)")
+                  (<! (timeout 300))
+                  (recur (inc retries)))
+                (do
+                  (log/error "Gave up attaching room to space after 10 attempts:" result)
+                  {:status "error" :msg (str result)})))))
+        {:status "error" :msg "Space service not initialized"}))))
+
+
+
+(worker/register :space-remove-child
+  (fn [{:keys [space-id child-id]}]
+    (go
+      (if-let [svc @!space-service]
+        (try
+          (<p! (.removeChildFromSpace svc child-id space-id))
+          {:status "success"}
+          (catch :default e
+            (log/error "Failed to remove room" child-id "from space" space-id ":" e)
+            {:status "error" :msg (str e)}))
+        {:status "error" :msg "Space service not initialized"}))))
