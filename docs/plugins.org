@@ -152,7 +152,7 @@ on the fly.
          [:div.plugins-container-card.split-layout
           [:div.install-column
            [:h3.settings-subheading {:style {:margin-top 0}} (tr [:settings.plugins/themes-title])]
-           [:div.plugin-input-row
+           [:div.plugin-input-row {:style {:flex-direction "column"}}
             [:input.form-input.plugin-input
              {:type "text"
               :placeholder (tr [:settings.plugins/placeholder-theme-url])
