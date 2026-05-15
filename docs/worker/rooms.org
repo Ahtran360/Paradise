@@ -465,27 +465,33 @@ type as a parameter. For now this at least provides the core functionality.
 
 #+begin_src clojurescript :tangle ../../src/worker/rooms.cljs
 (worker/register :create-room
-  (fn [{:keys [name topic is-private is-space]}]
+  (fn [{:keys [name topic visibility is-encrypted history-visibility is-space]}]
     (go
       (if-let [client @state/!client]
         (try
-          (let [visibility (if is-private
-                             (.new (.-Private (.-RoomVisibility sdk)))
-                             (.new (.-Public (.-RoomVisibility sdk))))
-                preset     (if is-private
-                             (.-PrivateChat (.-RoomPreset sdk))
-                             (.-PublicChat (.-RoomPreset sdk)))
-                topic-val  (if (str/blank? topic) js/undefined topic)
+          (let [vis-enum  (if (= visibility "Public")
+                            (.new (.-Public (.-RoomVisibility sdk)))
+                            (.new (.-Private (.-RoomVisibility sdk))))
+                preset    (if (= visibility "Public")
+                            (.-PublicChat (.-RoomPreset sdk))
+                            (.-PrivateChat (.-RoomPreset sdk)))
+                hist-enum (case history-visibility
+                            "Invited"       (.new (.-Invited (.-RoomHistoryVisibility sdk)))
+                            "Joined"        (.new (.-Joined (.-RoomHistoryVisibility sdk)))
+                            "WorldReadable" (.new (.-WorldReadable (.-RoomHistoryVisibility sdk)))
+                            (.new (.-Shared (.-RoomHistoryVisibility sdk))))
+                topic-val (if (str/blank? topic) js/undefined topic)
 
-                params     (.create (.-CreateRoomParameters sdk)
-                                    #js {:name        name
-                                         :topic       topic-val
-                                         :isEncrypted is-private
-                                         :isDirect    false
-                                         :visibility  visibility
-                                         :preset      preset
-                                         :isSpace     is-space})
-                room-id    (<p! (.createRoom client params))]
+                params    (.create (.-CreateRoomParameters sdk)
+                                   #js {:name                      name
+                                        :topic                     topic-val
+                                        :isEncrypted               (boolean is-encrypted)
+                                        :isDirect                  false
+                                        :visibility                vis-enum
+                                        :preset                    preset
+                                        :historyVisibilityOverride hist-enum
+                                        :isSpace                   (boolean is-space)})
+                room-id   (<p! (.createRoom client params))]
             {:status "success" :room-id room-id})
           (catch :default e
             {:status "error" :msg (str e)}))
