@@ -81,6 +81,35 @@
     :pinned-messages "Pinned Messages"
     :member-list "Member List"
     :more-options "More Options"}}
+  :creation
+  {:room
+   {:name-label         "Room Name"
+    :name-placeholder   "e.g. General"
+    :topic-label        "Topic"
+    :topic-placeholder  "Optional"
+    :visibility-label   "Directory Visibility"
+    :history-label      "History Visibility"
+    :encryption-label   "Enable End-to-End Encryption"}
+   :space
+   {:name-label         "Space Name"
+    :name-placeholder   "e.g. Engineering"
+    :topic-label        "Topic"
+    :topic-placeholder  "Optional"
+    :visibility-label   "Directory Visibility"
+    :history-label      "History Visibility"
+    :encryption-label   "Enable End-to-End Encryption"}
+   :visibility
+   {:private "Private (Invite Only)"
+    :public  "Public (Anyone can join)"}
+   :history
+   {:shared  "Shared (View past history upon joining)"
+    :joined  "Joined (View only from join point forward)"
+    :invited "Invited (View from invitation point forward)"
+    :world   "World Readable (Anyone can read without joining)"}
+   :action
+   {:cancel   "Cancel"
+    :creating "Creating..."
+    :create   "Create"}}
   :auth
   {:welcome "Welcome to Paradise."
    :subtitle "Make yourself comfy."
