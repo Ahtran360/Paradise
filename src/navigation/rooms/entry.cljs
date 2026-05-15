@@ -291,14 +291,16 @@
 
 (re-frame/reg-event-fx
  :rooms/create-room
- (fn [{:keys [db]} [_ {:keys [name topic is-private? is-space? parent-space-id on-error]}]]
+ (fn [{:keys [db]} [_ {:keys [name topic visibility is-encrypted history-visibility is-space parent-space-id on-error]}]]
    (go
      (let [pool @state/!engine-pool
            res  (<! (main/do-with-pool! pool {:handler :create-room
-                                              :arguments {:name name
-                                                          :topic topic
-                                                          :is-private is-private?
-                                                          :is-space is-space?}}))]
+                                              :arguments {:name               name
+                                                          :topic              topic
+                                                          :visibility         visibility
+                                                          :is-encrypted       is-encrypted
+                                                          :history-visibility history-visibility
+                                                          :is-space           is-space}}))]
        (if (= (:status res) "success")
          (let [new-room-id (:room-id res)]
            (when parent-space-id
@@ -315,7 +317,6 @@
            (log/error "Failed to create room/space:" (:msg res))
            (when on-error (on-error))))))
    {}))
-
 
 (re-frame/reg-sub
  :room/membership
