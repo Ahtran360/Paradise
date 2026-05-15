@@ -1,0 +1,168 @@
+(ns overlays.creation
+  (:require
+   [utils.global-ui :refer [avatar handle-list-navigation selectable-list]]
+   [re-frame.core :as re-frame]
+   [reagent.core :as r]
+   [clojure.string :as str]
+   [utils.macros :refer [defui]]
+   [overlays.base :refer [modal-component popover-component]]))
+
+(defui create-room-content [{:keys [target-space-id]}]
+  (let [tr        @(re-frame/subscribe [:i18n/tr])
+        close-fn  #(re-frame/dispatch [:ui/close-modal])]
+    (r/with-let [room-name          (r/atom "")
+                 room-topic         (r/atom "")
+                 visibility         (r/atom "Private")
+                 is-encrypted       (r/atom true)
+                 history-visibility (r/atom "Shared")
+                 is-loading         (r/atom false)]
+      [:div.create-room-container
+       [:div.form-group
+        [:label (tr [:creation.room/name-label])]
+        [:input.form-input
+         {:type "text"
+          :auto-focus true
+          :placeholder (tr [:creation.room/name-placeholder])
+          :value @room-name
+          :on-change #(reset! room-name (.. % -target -value))}]]
+       [:div.form-group
+        [:label (tr [:creation.room/topic-label])]
+        [:input.form-input
+         {:type "text"
+          :placeholder (tr [:creation.room/topic-placeholder])
+          :value @room-topic
+          :on-change #(reset! room-topic (.. % -target -value))}]]
+
+       [:div.form-group
+        [:label (tr [:creation.room/visibility-label])]
+        [:select.form-input
+         {:value @visibility
+          :on-change #(reset! visibility (.. % -target -value))}
+         [:option {:value "Private"} (tr [:creation.visibility/private])]
+         [:option {:value "Public"} (tr [:creation.visibility/public])]]]
+
+       [:div.form-group
+        [:label (tr [:creation.room/history-label])]
+        [:select.form-input
+         {:value @history-visibility
+          :on-change #(reset! history-visibility (.. % -target -value))}
+         [:option {:value "Shared"} (tr [:creation.history/shared])]
+         [:option {:value "Joined"} (tr [:creation.history/joined])]
+         [:option {:value "Invited"} (tr [:creation.history/invited])]
+         [:option {:value "WorldReadable"} (tr [:creation.history/world])]]]
+       [:div.form-group.toggle-row
+        [:div.setting-text
+         [:label (tr [:creation.room/encryption-label])]]
+        [:label.custom-toggle
+         [:input
+          {:type "checkbox"
+           :checked @is-encrypted
+           :on-change #(swap! is-encrypted not)}]
+         [:div.toggle-track
+          [:div.toggle-knob]]]]
+       [:div.modal-actions
+        [:button.form-button.destructive
+         {:on-click close-fn
+          :disabled @is-loading}
+         (tr [:creation.action/cancel])]
+        [:button.form-button.create-button
+         {:on-click (fn []
+                      (when-not (str/blank? @room-name)
+                        (reset! is-loading true)
+                        (re-frame/dispatch [:rooms/create-room
+                                            {:name               @room-name
+                                             :topic              @room-topic
+                                             :visibility         @visibility
+                                             :is-encrypted       @is-encrypted
+                                             :history-visibility @history-visibility
+                                             :is-space           false
+                                             :parent-space-id    target-space-id
+                                             :on-error           #(reset! is-loading false)}])))
+          :disabled (or (str/blank? @room-name) @is-loading)}
+         (if @is-loading
+           (tr [:creation.action/creating])
+           (tr [:creation.action/create]))]]])))
+
+(defui create-space-content [{:keys [target-space-id]}]
+  (let [tr        @(re-frame/subscribe [:i18n/tr])
+        close-fn  #(re-frame/dispatch [:ui/close-modal])]
+    (r/with-let [space-name         (r/atom "")
+                 space-topic        (r/atom "")
+                 visibility         (r/atom "Private")
+                 is-encrypted       (r/atom false)
+                 history-visibility (r/atom "Shared")
+                 is-loading         (r/atom false)]
+      [:div.create-space-container
+       [:div.form-group
+        [:label (tr [:creation.space/name-label])]
+        [:input.form-input
+         {:type "text"
+          :auto-focus true
+          :placeholder (tr [:creation.space/name-placeholder])
+          :value @space-name
+          :on-change #(reset! space-name (.. % -target -value))}]]
+       [:div.form-group
+        [:label (tr [:creation.space/topic-label])]
+        [:input.form-input
+         {:type "text"
+          :placeholder (tr [:creation.space/topic-placeholder])
+          :value @space-topic
+          :on-change #(reset! space-topic (.. % -target -value))}]]
+
+       [:div.form-group
+        [:label (tr [:creation.space/visibility-label])]
+        [:select.form-input
+         {:value @visibility
+          :on-change #(reset! visibility (.. % -target -value))}
+         [:option {:value "Private"} (tr [:creation.visibility/private])]
+         [:option {:value "Public"} (tr [:creation.visibility/public])]]]
+
+       [:div.form-group
+        [:label (tr [:creation.space/history-label])]
+        [:select.form-input
+         {:value @history-visibility
+          :on-change #(reset! history-visibility (.. % -target -value))}
+         [:option {:value "Shared"} (tr [:creation.history/shared])]
+         [:option {:value "Joined"} (tr [:creation.history/joined])]
+         [:option {:value "Invited"} (tr [:creation.history/invited])]
+         [:option {:value "WorldReadable"} (tr [:creation.history/world])]]]
+
+       [:div.form-group.toggle-row
+        [:div.setting-text
+         [:label (tr [:creation.space/encryption-label])]]
+        [:label.custom-toggle
+         [:input
+          {:type "checkbox"
+           :checked @is-encrypted
+           :on-change #(swap! is-encrypted not)}]
+         [:div.toggle-track
+          [:div.toggle-knob]]]]
+       [:div.modal-actions
+        [:button.form-button.destructive
+         {:on-click close-fn
+          :disabled @is-loading}
+         (tr [:creation.action/cancel])]
+        [:button.form-button.create-button
+         {:on-click (fn []
+                      (when-not (str/blank? @space-name)
+                        (reset! is-loading true)
+                        (re-frame/dispatch [:rooms/create-room
+                                            {:name               @space-name
+                                             :topic              @space-topic
+                                             :visibility         @visibility
+                                             :is-encrypted       @is-encrypted
+                                             :history-visibility @history-visibility
+                                             :is-space           true
+                                             :parent-space-id    target-space-id
+                                             :on-error           #(reset! is-loading false)}])))
+          :disabled (or (str/blank? @space-name) @is-loading)}
+         (if @is-loading
+           (tr [:creation.action/creating])
+           (tr [:creation.action/create]))]]])))
+
+
+(defmethod modal-component :create-space [_]
+  create-space-content)
+
+(defmethod modal-component :create-room [_]
+  create-room-content)
